@@ -10,8 +10,13 @@ import React, { useRef, useEffect } from 'react';
    d'avoir un fond vidéo sans rendre la donnée illisible.
 
    Trois pièges déjà payés, à ne pas réintroduire :
-   - lecture depuis un Blob : un hébergeur qui ne sert pas les requêtes par
-     plage fige video.seekable à [0,0] et toute recherche retombe sur l'image 0
+   - lecture depuis un Blob. A NE PAS LIRE A L'ENVERS : le Blob est le remède,
+     pas la cause. Servie par une URL http depuis un hébergeur qui ne répond
+     pas aux requêtes par plage, la vidéo a video.seekable figé à [0,0] et
+     toute recherche retombe sur l'image 0. Un objet Blob est toujours
+     entièrement navigable, donc le scrubbing fonctionne. Mesuré sur cette
+     page : le clip va de 0 à 10 s du haut vers le bas, voir le contrôle
+     "le clip de fond avance avec le scroll".
    - temps piloté dans une boucle rAF et non sur l'événement scroll, qui ne se
      déclenche pas dans un onglet en arrière-plan
    - une seule recherche à la fois : jamais empiler un currentTime sur un seek
