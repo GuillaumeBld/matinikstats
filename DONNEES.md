@@ -62,27 +62,49 @@ interrupteur.
 
 `FAKE` en tête de `src/App.jsx`, une clé par famille :
 
-```js
-const FAKE = {
-  rosters:    true,   // effectifs inventés
-  fixtures:   true,   // calendrier et scores inventés
-  score:      true,   // stats de la famille SCORE
-  mouvement:  true,   // stats de la famille MOUVEMENT
-  highlights: true,   // temps forts inventés
-};
-```
-
-Surchargeable à l'exécution sans reconstruire, pour pouvoir montrer les deux
-états côte à côte :
+**Par défaut, rien n'est fabriqué.** Le site est vrai à l'arrivée et on **opte
+pour** la démonstration, jamais l'inverse. Un défaut qui invente oblige à penser
+à l'éteindre ; un défaut qui dit la vérité ne peut pas se tromper par oubli, et
+c'est le seul sens qui protège les clubs réels.
 
 ```
-/?faux=off            tout éteint
-/?faux=fixtures,score seules ces familles restent allumées
+/                         rien de fabriqué   (défaut)
+/?faux=on                 tout allumé, mode démonstration
+/?faux=fixtures,score     seules ces familles sont allumées
 ```
+
+Cinq familles : `rosters`, `fixtures`, `score`, `mouvement`, `highlights`.
+
+### Dépendances, qui sont réelles et non des préférences
+
+- `score` ou `mouvement` impliquent `rosters` et `fixtures` : il n'y a pas de
+  statistique par joueur sans joueurs, ni de match sans calendrier
+- `highlights` implique `rosters` : un temps fort nomme un joueur
+
+Une combinaison impossible est corrigée à la lecture plutôt que de planter plus
+bas.
 
 Quand une famille est éteinte, l'interface ne casse pas : elle retombe dans
 l'état **« pas encore de captation »** qui existe déjà dans le code de Benoît,
 avec le champ ASCII qui marque l'absence de donnée.
+
+## Sept plantages révélés par l'extinction
+
+Tous du même genre : du code qui supposait que la donnée est toujours là. Ils
+étaient invisibles parce qu'elle l'était toujours.
+
+| Endroit | Symptôme |
+|---|---|
+| `ROSTERS[id].map` et `.find`, une dizaine de sites | clé absente au lieu d'un tableau vide |
+| `getPlayerOfTheWeek` | `played[0].id` sur une liste vide |
+| `getWeeklyFeatured` | fixture absente déréférencée |
+| `getSeasonRecords` | `record: null`, puis record au joueur introuvable |
+| section joueur de la semaine | rendue sans son contenu |
+| `buildLeagueFeed` | `topPlayer.id` sur un joueur absent |
+| `MatchCard` | même chose, sur deux cartes |
+
+Un état légitime, pas une anomalie : sans effectif, on sait qu'un match a eu
+lieu mais pas qui l'a marqué. L'interface le dit désormais au lieu de planter.
 
 ## Ce que l'extinction règle, et ce qu'elle ne règle pas
 

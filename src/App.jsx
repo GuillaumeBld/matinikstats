@@ -41,30 +41,39 @@ import BackdropFilm from './BackdropFilm.jsx';
    PAS ensemble: un club peut avoir une camera sans marqueur a la table ce
    soir-la, ou l inverse. Voir DONNEES.md.
 
-   Surchargeable a l execution, sans reconstruire, pour montrer les deux etats:
-     /?faux=off                tout eteint
-     /?faux=fixtures,score     seules ces familles restent allumees
+   PAR DEFAUT, RIEN N EST FABRIQUE. Le site est vrai a l arrivee et on OPTE
+   POUR la demonstration, jamais l inverse. Un defaut qui invente oblige a
+   penser a l eteindre; un defaut qui dit la verite ne peut pas se tromper par
+   oubli, et c est le seul sens qui protege les clubs reels.
+
+     /                         rien de fabrique  (defaut)
+     /?faux=on                 tout allume, mode demonstration
+     /?faux=fixtures,score     seules ces familles sont allumees
    ========================================================================= */
 
-const FAKE_DEFAUT = {
-  rosters: true,      // effectifs inventes
-  fixtures: true,     // calendrier et scores inventes
-  score: true,        // famille SCORE: points, tirs, rebonds, passes, fautes
-  mouvement: true,    // famille MOUVEMENT: distance, vitesse, sprints, touches
-  highlights: true,   // temps forts inventes
-};
+const FAMILLES_FAUX = ['rosters', 'fixtures', 'score', 'mouvement', 'highlights'];
+
+function lireFaux(valeur) {
+  const out = {};
+  const tout = valeur === 'on' || valeur === 'all' || valeur === '1';
+  const gardees = new Set(
+    valeur && !tout ? valeur.split(',').map((x) => x.trim()) : [],
+  );
+  for (const k of FAMILLES_FAUX) out[k] = tout || gardees.has(k);
+  // Dependances reelles, pas des preferences: il n y a pas de statistique par
+  // joueur sans joueurs, ni de match sans calendrier. Une combinaison
+  // impossible est corrigee ici plutot que de planter plus bas.
+  if (out.score || out.mouvement) { out.rosters = true; out.fixtures = true; }
+  // Un temps fort nomme un joueur: sans effectif, il n a personne a designer.
+  if (out.highlights) out.rosters = true;
+  return out;
+}
 
 const FAKE = (() => {
   try {
-    const p = new URLSearchParams(location.search).get('faux');
-    if (p === null) return { ...FAKE_DEFAUT };
-    if (p === 'off' || p === '') return { rosters: false, fixtures: false, score: false, mouvement: false, highlights: false };
-    const gardees = new Set(p.split(',').map((x) => x.trim()));
-    const out = {};
-    for (const k of Object.keys(FAKE_DEFAUT)) out[k] = gardees.has(k);
-    return out;
+    return lireFaux(new URLSearchParams(location.search).get('faux'));
   } catch (e) {
-    return { ...FAKE_DEFAUT };   // pas d URL exploitable: on reste au defaut
+    return lireFaux(null);   // pas d URL exploitable: on reste au vrai
   }
 })();
 
@@ -596,7 +605,12 @@ function getTeamTotals(match) {
     avgEffectiveMin: Math.round(sum('effectiveMin') / n),
   };
 }
+// Un match sans joueur n a pas de meilleur marqueur. C est un etat legitime
+// depuis que les effectifs peuvent etre eteints, pas une anomalie.
 function getMatchTopScorer(match) {
+  if (!match || !match.players || match.players.length === 0) {
+    return { playerId: null, pts: 0 };
+  }
   return match.players.reduce((best, p) => (!best || p.pts > best.pts ? p : best), null);
 }
 
@@ -648,7 +662,12 @@ function buildLeagueFeed() {
       const awayTop = getMatchTopScorer(awayMatch);
       const bestIsHome = homeTop.pts >= awayTop.pts;
       const topTeamId = bestIsHome ? f.homeTeamId : f.awayTeamId;
-      const topPlayer = ROSTERS[topTeamId].find((p) => p.id === (bestIsHome ? homeTop.playerId : awayTop.playerId));
+      // Sans effectif, un match a un score mais personne a designer comme
+      // meilleur marqueur. On renvoie une entree explicitement vide plutot que
+      // de deréférencer un joueur absent.
+      const topPlayer = (ROSTERS[topTeamId] || []).find(
+        (p) => p.id === (bestIsHome ? homeTop.playerId : awayTop.playerId),
+      ) || null;
       const topPts = bestIsHome ? homeTop.pts : awayTop.pts;
       return {
         id: f.id,
@@ -660,7 +679,7 @@ function buildLeagueFeed() {
         awayLabel: teamName(f.awayTeamId),
         homeScore: f.homeScore,
         awayScore: f.awayScore,
-        topScorer: { id: topPlayer.id, teamId: topTeamId, name: topPlayer.name, pts: topPts },
+        topScorer: topPlayer ? { id: topPlayer.id, teamId: topTeamId, name: topPlayer.name, pts: topPts } : null,
       };
     })
     .sort((a, b) => b.date.localeCompare(a.date));
@@ -684,12 +703,15 @@ function getWeeklyFeatured(matchId) {
   const opponentId = bestIsHome ? fixture.awayTeamId : fixture.homeTeamId;
   const teamMatch = bestIsHome ? homeMatch : awayMatch;
   const stat = bestIsHome ? homeTop : awayTop;
-  const player = ROSTERS[teamId].find((p) => p.id === stat.playerId);
+  const player = (ROSTERS[teamId] || []).find((p) => p.id === stat.playerId);
+  // Sans effectif, on sait qu un match a eu lieu mais pas qui l a marque: il n y
+  // a donc pas de vedette de la semaine. null, et l appelant n affiche rien.
+  if (!player) return null;
   return { fixture, teamMatch, player, teamId, stat, opponentName: teamName(opponentId) };
 }
 
 function getWeeklyFeaturedHistory() {
-  return FIXTURES.filter((f) => f.homeScore != null).sort((a, b) => b.date.localeCompare(a.date)).map((f) => getWeeklyFeatured(f.id));
+  return FIXTURES.filter((f) => f.homeScore != null).sort((a, b) => b.date.localeCompare(a.date)).map((f) => getWeeklyFeatured(f.id)).filter(Boolean);
 }
 
 // Sans aucun match joue, il n y a pas de joueur de la semaine. C est un etat
@@ -721,8 +743,12 @@ function getSeasonRecords(competitionId = null) {
         RECORD_CATEGORIES.forEach((c) => {
           const value = ps[c.key];
           if (!best[c.key] || value > best[c.key].value) {
-            const player = ROSTERS[t.id].find((p) => p.id === ps.playerId);
-            best[c.key] = { value, player, teamId: t.id, opponent: m.opponent, date: m.date };
+            // Un record sans joueur identifiable n en est pas un: sans effectif,
+            // on sait qu un score a ete realise mais pas par qui. On n enregistre
+            // donc rien plutot que d enregistrer une entree au joueur absent, que
+            // l affichage deréférence ensuite.
+            const player = (ROSTERS[t.id] || []).find((p) => p.id === ps.playerId);
+            if (player) best[c.key] = { value, player, teamId: t.id, opponent: m.opponent, date: m.date };
           }
         });
       });
@@ -1007,7 +1033,7 @@ function TeamLink({ teamId, name, onSelectTeam, className = '' }) {
 function MatchCard({ team, match, onClick, onSelectTeam, onOpenPlayer }) {
   const roster = ROSTERS[team.id];
   const top = getMatchTopScorer(match);
-  const topPlayer = roster.find((p) => p.id === top.playerId);
+  const topPlayer = (roster || []).find((p) => p.id === top.playerId) || null;
   return (
     <button className="p4t-match-card" onClick={onClick}>
       <div className="p4t-match-card-top">
@@ -1022,8 +1048,12 @@ function MatchCard({ team, match, onClick, onSelectTeam, onOpenPlayer }) {
       <div className="p4t-match-card-stats">
         <span className="p4t-chip-primary">
           <Target size={13} />
-          <PlayerLink teamId={team.id} playerId={topPlayer.id} name={topPlayer.name.split(' ')[0]} onOpenPlayer={onOpenPlayer} />
-          {' '}— {top.pts} pts
+          {topPlayer ? (
+            <>
+              <PlayerLink teamId={team.id} playerId={topPlayer.id} name={topPlayer.name.split(' ')[0]} onOpenPlayer={onOpenPlayer} />
+              {' '}— {top.pts} pts
+            </>
+          ) : 'meilleur marqueur non renseigné'}
         </span>
       </div>
     </button>
@@ -1111,8 +1141,12 @@ function LeagueMatchCard({ item, onOpenMatch, onSelectTeam, onOpenPlayer }) {
       <div className="p4t-match-card-stats">
         <span className="p4t-chip-primary">
           <Target size={13} />
-          <PlayerLink teamId={item.topScorer.teamId} playerId={item.topScorer.id} name={item.topScorer.name.split(' ')[0]} onOpenPlayer={onOpenPlayer} />
-          {' '}— {item.topScorer.pts} pts
+          {item.topScorer ? (
+            <>
+              <PlayerLink teamId={item.topScorer.teamId} playerId={item.topScorer.id} name={item.topScorer.name.split(' ')[0]} onOpenPlayer={onOpenPlayer} />
+              {' '}— {item.topScorer.pts} pts
+            </>
+          ) : 'meilleur marqueur non renseigné'}
         </span>
       </div>
     </button>
@@ -1144,7 +1178,9 @@ function stampDemo(ctx, w, h) {
 function HighlightShareModal({ highlight, onClose }) {
   const meta = HIGHLIGHT_TYPES[highlight.type];
   const Icon = meta.icon;
-  const player = ROSTERS[highlight.teamId].find((p) => p.id === highlight.playerId);
+  // Le joueur peut etre introuvable si les effectifs sont eteints: on ne
+  // deréférence pas un resultat absent.
+  const player = (ROSTERS[highlight.teamId] || []).find((p) => p.id === highlight.playerId) || { name: '', number: '' };
   const colors = HIGHLIGHT_SHARE_COLORS[highlight.type];
 
   const handleDownload = () => {
@@ -1236,7 +1272,9 @@ function HighlightCard({ highlight, onOpenPlayer, onSelectTeam }) {
   const [showShare, setShowShare] = useState(false);
   const meta = HIGHLIGHT_TYPES[highlight.type];
   const Icon = meta.icon;
-  const player = ROSTERS[highlight.teamId].find((p) => p.id === highlight.playerId);
+  // Le joueur peut etre introuvable si les effectifs sont eteints: on ne
+  // deréférence pas un resultat absent.
+  const player = (ROSTERS[highlight.teamId] || []).find((p) => p.id === highlight.playerId) || { name: '', number: '' };
   return (
     <>
       <button className="p4t-highlight-card" onClick={() => onOpenPlayer(highlight.teamId, highlight.playerId)}>
@@ -1382,7 +1420,7 @@ function MatchesView({ team, onOpenMatch, onSelectTeam, onOpenPlayer }) {
 
 function MatchShareModal({ match, roster, onClose }) {
   const top = getMatchTopScorer(match);
-  const topPlayer = roster.find((p) => p.id === top.playerId);
+  const topPlayer = (roster || []).find((p) => p.id === top.playerId) || null;
 
   const handleDownload = () => {
     const w = 800, h = 1000;

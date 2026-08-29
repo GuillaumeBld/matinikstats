@@ -21,12 +21,16 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 
 const THEMES = ['dark', 'light'];
 
-async function boot(page, theme) {
+// faux=on par defaut DANS LES TESTS: la plupart des controles ont besoin de
+// donnees pour s exercer, et le site n en fabrique plus par defaut depuis que
+// l interrupteur est inverse. Le controle de l etat par defaut, lui, passe
+// explicitement faux=null.
+async function boot(page, theme, faux = 'on') {
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
-  await page.goto('/', { waitUntil: 'load' });
+  await page.goto(faux ? `/?faux=${faux}` : '/', { waitUntil: 'load' });
   await page.evaluate((t) => localStorage.setItem('matinik-theme', t), theme);
-  await page.reload({ waitUntil: 'load' });
+  await page.goto(faux ? `/?faux=${faux}` : '/', { waitUntil: 'load' });
   await page.waitForTimeout(2500);
   return errors;
 }
@@ -273,4 +277,48 @@ test('les logos de clubs s affichent et le repli sur initiales tient', async ({ 
   expect(r.initiales, 'aucun repli sur initiales: les clubs sans logo sont vides').toBeGreaterThan(3);
   expect(r.cassees, 'des images de logo sont cassées').toBe(0);
   expect(err404, `requêtes de logo en échec: ${err404.join(', ')}`).toEqual([]);
+});
+
+
+// L INTERRUPTEUR. Par defaut le site ne fabrique RIEN: c est le seul sens qui
+// protege les clubs reels, puisqu un defaut qui invente oblige a penser a
+// l eteindre alors qu un defaut qui dit la verite ne se trompe pas par oubli.
+test('par défaut, aucune donnée fabriquée n est affichée', async ({ page }) => {
+  const errors = await boot(page, 'dark', null);
+  expect(errors, `erreurs de page: ${errors.join(' | ')}`).toEqual([]);
+  const r = await page.evaluate(() => {
+    const t = document.body.innerText;
+    return {
+      clubs: document.querySelectorAll('.p4t-team-card').length,
+      highlights: document.querySelectorAll('.p4t-highlight-card').length,
+      scores: (t.match(/\b\d{2}\s*[–-]\s*\d{2}\b/g) || []).length,
+      bandeau: (document.querySelector('.p4t-demo-banner') || {}).textContent || '',
+    };
+  });
+  // Les 30 clubs sont REELS: ils doivent rester. C est le reste qui disparait.
+  expect(r.clubs, 'les clubs réels ont disparu').toBe(30);
+  expect(r.highlights, 'des temps forts fabriqués sont affichés par défaut').toBe(0);
+  expect(r.scores, 'des scores fabriqués sont affichés par défaut').toBe(0);
+  // Et le bandeau doit dire la verite du moment, pas l inverse.
+  expect(r.bandeau).toContain('EN ATTENTE DE CAPTATION');
+  expect(r.bandeau).not.toContain('fabriqués');
+});
+
+// Toutes les combinaisons de l interrupteur doivent tenir. Eteindre une famille
+// a revele SEPT plantages caches, tous du meme genre: du code qui supposait que
+// la donnee est toujours la.
+test('toutes les combinaisons de l interrupteur se chargent sans erreur', async ({ page }) => {
+  const combis = ['on', 'off', 'rosters', 'fixtures', 'highlights', 'score', 'mouvement',
+                  'fixtures,score', 'rosters,highlights', 'nimportequoi'];
+  const casses = [];
+  for (const c of combis) {
+    const errs = [];
+    const h = (e) => errs.push(String(e));
+    page.on('pageerror', h);
+    await page.goto(`/?faux=${c}`, { waitUntil: 'load' });
+    await page.waitForTimeout(1200);
+    page.off('pageerror', h);
+    if (errs.length) casses.push(`${c}: ${errs[0].slice(0, 90)}`);
+  }
+  expect(casses, `combinaisons en échec:\n${casses.join('\n')}`).toEqual([]);
 });
