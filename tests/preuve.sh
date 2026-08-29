@@ -7,6 +7,15 @@
 # motif ne correspond plus, ce qui faisait passer le test sans injecter le bug).
 set -u
 
+# GARDE-FOU. Ce script restaure src/App.jsx par git checkout apres chaque
+# injection, ce qui EFFACE tout travail non commite. Il a deja detruit un
+# composant en cours d ecriture. Il refuse donc de tourner sur un arbre sale.
+if ! git diff --quiet -- src/App.jsx; then
+  echo "REFUS: src/App.jsx a des modifications non commitees."
+  echo "Ce script les detruirait en restaurant le fichier. Commite d abord."
+  exit 2
+fi
+
 sub() { python3 -c '
 import sys
 p, a, b = sys.argv[1], sys.argv[2], sys.argv[3]
@@ -60,6 +69,16 @@ echo "=== 6. tampon retire du PNG genere ==="
 sub src/App.jsx '    stampDemo(ctx, w, h);
 ' ''
 run "PNG de partage porte le tampon"
+git checkout -q src/App.jsx
+
+echo "=== 7. repli sur initiales supprime ==="
+sub src/App.jsx '    return <span className={cls}>{initials(name).slice(0, 2)}</span>;' '    return <span className={cls} />;'
+run "logos de clubs s affichent et le repli"
+git checkout -q src/App.jsx
+
+echo "=== 8. chemin des logos casse ==="
+sub src/App.jsx 'src={`/logos/${teamId}.png`}' 'src={`/logos-absents/${teamId}.png`}'
+run "logos de clubs s affichent et le repli"
 git checkout -q src/App.jsx
 
 echo "=== etat restaure ==="

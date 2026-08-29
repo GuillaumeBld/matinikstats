@@ -238,3 +238,30 @@ test('le PNG de partage porte le tampon de démonstration', async ({ page }, tes
   }, 'data:image/png;base64,' + fs.readFileSync(chemin).toString('base64'));
   expect(rouges, 'aucun tampon de démonstration dans le PNG').toBeGreaterThan(200);
 });
+
+// Les logos sont ceux de clubs REELS et la couverture est PARTIELLE: 15 sur 30.
+// Deux choses doivent donc tenir, et la seconde autant que la premiere: les
+// logos presents s'affichent, et les clubs sans logo gardent leurs initiales.
+// Un repli casse laisserait la moitie du championnat avec des pastilles vides.
+test('les logos de clubs s affichent et le repli sur initiales tient', async ({ page }) => {
+  const err404 = [];
+  page.on('response', (r) => {
+    if (r.url().includes('/logos/') && r.status() !== 200) err404.push(`${r.status()} ${r.url()}`);
+  });
+  await boot(page, 'dark');
+  await page.evaluate(() => (document.documentElement.scrollTop = 2400));
+  await page.waitForTimeout(1500);
+  const r = await page.evaluate(() => ({
+    logos: document.querySelectorAll('.p4t-avatar-logo').length,
+    initiales: [...document.querySelectorAll('.p4t-avatar')].filter(
+      (e) => !e.classList.contains('p4t-avatar-logo') && e.textContent.trim().length > 0,
+    ).length,
+    cassees: [...document.querySelectorAll('.p4t-avatar-logo img')].filter(
+      (i) => i.complete && i.naturalWidth === 0,
+    ).length,
+  }));
+  expect(r.logos, 'aucun logo de club affiché').toBeGreaterThan(3);
+  expect(r.initiales, 'aucun repli sur initiales: les clubs sans logo sont vides').toBeGreaterThan(3);
+  expect(r.cassees, 'des images de logo sont cassées').toBe(0);
+  expect(err404, `requêtes de logo en échec: ${err404.join(', ')}`).toEqual([]);
+});

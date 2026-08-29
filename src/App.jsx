@@ -787,6 +787,26 @@ function ThemeToggle() {
    PETITS COMPOSANTS
    ========================================================================= */
 
+// Pastille de club. Les logos sont ceux des clubs REELS, fournis par la ligue.
+// La couverture est PARTIELLE, 15 entrees sur 30, donc le repli sur les
+// initiales n'est pas une option de confort: c'est le cas de la moitie du
+// championnat. La liste est statique pour qu'aucune requete ne parte chercher
+// un fichier absent, et le logo est pose sur une pastille claire dans les DEUX
+// themes, parce que ces logos sont dessines pour du blanc.
+const LOGOS = new Set(['aiglenoir', 'blackstars', 'etoile', 'etoile-f', 'gauloise', 'kalinago', 'kalinago-f', 'madingrey', 'ouragan', 'ouragan-f', 'soufriere', 'trident', 'twenty4', 'usacfloreal', 'usacfloreal-f']);
+
+function ClubBadge({ teamId, name, size = '' }) {
+  const cls = `p4t-avatar ${size}`.trim();
+  if (!teamId || !LOGOS.has(teamId)) {
+    return <span className={cls}>{initials(name).slice(0, 2)}</span>;
+  }
+  return (
+    <span className={`${cls} p4t-avatar-logo`}>
+      <img src={`/logos/${teamId}.png`} alt="" aria-hidden="true" loading="lazy" />
+    </span>
+  );
+}
+
 function Tile({ icon: Icon, value, unit, label, sub, variant = 'primary' }) {
   return (
     <div className={`p4t-tile p4t-tile-${variant}`}>
@@ -948,7 +968,7 @@ function StandingsTable({ standings, onSelectTeam, full = false }) {
             <tr key={s.teamId} onClick={() => onSelectTeam(s.teamId)} className="p4t-tr-click">
               <td className="p4t-td-name">
                 <span className="p4t-standing-rank">{i + 1}</span>
-                <span className="p4t-avatar p4t-avatar-sm">{initials(s.name).slice(0, 2)}</span>
+                <ClubBadge teamId={s.teamId} name={s.name} size="p4t-avatar-sm" />
                 <span>{s.name}</span>
               </td>
               <td>{s.played}</td>
@@ -1842,7 +1862,9 @@ function SearchBox({ variant = 'nav', placeholder = 'Chercher un joueur…', ite
               className="p4t-search-result"
               onClick={() => { onSelect(item); setQuery(''); setFocused(false); }}
             >
-              <span className="p4t-avatar p4t-avatar-sm">{initials(item.name).slice(0, item.kind === 'team' ? 2 : 4)}</span>
+              {item.kind === 'team'
+                ? <ClubBadge teamId={item.id} name={item.name} size="p4t-avatar-sm" />
+                : <span className="p4t-avatar p4t-avatar-sm">{initials(item.name).slice(0, 4)}</span>}
               <span>{item.name}</span>
               {item.kind === 'team' ? (
                 <span className="p4t-search-result-team">{item.commune}</span>
@@ -2015,7 +2037,7 @@ function PlatformHome({ onSelectTeam, onOpenMatch, onOpenPlayer, onShowAllMatche
             <div className="p4t-team-grid">
               {g.teams.map((t) => (
                 <button key={t.id} className="p4t-team-card" onClick={() => onSelectTeam(t.id)}>
-                  <span className="p4t-avatar p4t-avatar-lg">{initials(t.name).slice(0, 2)}</span>
+                  <ClubBadge teamId={t.id} name={t.name} size="p4t-avatar-lg" />
                   <div className="p4t-team-card-info">
                     <div className="p4t-team-card-name">{t.name}</div>
                     <div className="p4t-team-card-loc">{t.commune} · {t.region}</div>
@@ -2526,7 +2548,7 @@ function AllClubsView({ onSelectTeam, onBack }) {
             <div className="p4t-team-grid">
               {g.teams.map((t) => (
                 <button key={t.id} className="p4t-team-card" onClick={() => onSelectTeam(t.id)}>
-                  <span className="p4t-avatar p4t-avatar-lg">{initials(t.name).slice(0, 2)}</span>
+                  <ClubBadge teamId={t.id} name={t.name} size="p4t-avatar-lg" />
                   <div className="p4t-team-card-info">
                     <div className="p4t-team-card-name">{t.name}</div>
                     <div className="p4t-team-card-loc">{t.commune} · {t.region}</div>
@@ -2678,7 +2700,7 @@ function TeamComingSoon({ team, onBack }) {
             speed={0.7}
             converge={0}
           />
-          <span className="p4t-avatar p4t-avatar-lg p4t-avatar-muted">{initials(team.name).slice(0, 2)}</span>
+          <ClubBadge teamId={team.id} name={team.name} size="p4t-avatar-lg" />
           <h1 className="p4t-comingsoon-title">{team.name}</h1>
           <p className="p4t-comingsoon-loc">{team.commune} · {team.region}</p>
           <p className="p4t-comingsoon-text">PIX4TEAM 2 n'est pas encore déployé chez ce club. Dès la première captation, les matchs, les stats d'équipe et les fiches joueurs apparaîtront ici automatiquement.</p>
@@ -3555,6 +3577,15 @@ export default function App() {
           color: var(--red); font-family: var(--font-display); font-size: 12.5px; font-weight: 600;
           display: flex; align-items: center; justify-content: center; flex-shrink: 0;
         }
+        /* Ces logos sont dessines pour du blanc. On les pose donc sur une
+           pastille claire dans les DEUX themes plutot que de detourer le blanc,
+           ce qui detruirait les elements blancs de certains d entre eux. */
+        .p4t-avatar-logo {
+          background: #FBF8F2; border-color: rgba(0,0,0,.10);
+          overflow: hidden; padding: 3px;
+        }
+        .p4t-avatar-logo img { width: 100%; height: 100%; object-fit: contain; display: block; }
+
         .p4t-avatar-sm { width: 26px; height: 26px; font-size: 10.5px; }
         .p4t-avatar-lg { width: 62px; height: 62px; font-size: 20px; }
         .p4t-avatar-muted { color: var(--ink-dim); border-style: dashed; }
