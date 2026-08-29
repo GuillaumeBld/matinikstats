@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+jobs:
+  # Le VERIFICATEUR ne doit pas etre modifiable par la meme main que le code
+  # qu il juge. Ce job echoue si une PR touche les tests, la config Playwright
+  # ou ce workflow. Ce n est pas une consigne dans un prompt, c est un controle
+  # deterministe: une PR qui change le juge ne peut pas etre fusionnee sans
+  # qu un humain le voie.
+  garde-verificateur:
+    runs-on: ubuntu-latest
+    # Ne s applique QU AUX PR candidates a la fusion automatique. Sinon la PR
+    # qui introduit ce garde-fou serait bloquee par lui-meme, et la CI resterait
+    # rouge en permanence, ce qui est un mauvais signal: rouge doit vouloir dire
+    # casse, pas "en attente d un humain". Une PR qui touche au verificateur ne
+    # porte simplement pas le label, et un humain la fusionne.
+    if: github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'fusion-auto')
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: La PR touche-t-elle le verificateur
+        run: |
+          BASE="${{ github.event.pull_request.base.sha }}"
+          HEAD="${{ github.event.pull_request.head.sha }}"
+          # On garde l AFFAIBLISSEMENT du verificateur, pas son edition.
+          # Interdire tout changement de test serait trop brutal: aucune PR ne
+          # pourrait plus ajouter de controle, et un correctif arriverait donc
+          # sans sa garantie. Ajouter un test renforce le juge, le retirer
+          # l affaiblit.
+
+          # 1. La configuration et le workflow eux-memes: aucune modification.
+          CONFIG=$(git diff --name-only "$BASE" "$HEAD" \
+            | grep -E '^(playwright\.config\.js|\.github/workflows/)' || true)
+          if [ -n "$CONFIG" ]; then
+            echo "Cette PR modifie la configuration du verificateur:"
+            echo "$CONFIG"
+            echo "Retirer le label fusion-auto et faire relire par un humain."
+            exit 1
+          fi
+
+          # 2. Dans tests/, on refuse les SUPPRESSIONS d assertions et de cas.
+          RETIRES=$(git diff -U0 "$BASE" "$HEAD" -- tests/ \
+            | grep -E '^-' | grep -v '^---' \
+            | grep -cE '(expect\(|^\-\s*test\()' || true)
+          if [ "${RETIRES:-0}" -gt 0 ]; then
+            echo "Cette PR retire $RETIRES assertion(s) ou cas de test."
+            git diff -U0 "$BASE" "$HEAD" -- tests/ | grep -E '^-' | grep -v '^---' | head -20
+            echo "Retirer le label fusion-auto et faire relire par un humain."
+            exit 1
+          fi
+
+          # 3. Et les mises en sommeil, qui rendent un test vert sans rien verifier.
+          SOMMEIL=$(git diff -U0 "$BASE" "$HEAD" -- tests/ \
+            | grep -E '^\+' | grep -v '^\+\+\+' \
+            | grep -cE '(test|describe)\.(skip|only|fixme)|\.fixme\(' || true)
+          if [ "${SOMMEIL:-0}" -gt 0 ]; then
+            echo "Cette PR met $SOMMEIL test(s) en sommeil (skip, only, fixme)."
+            exit 1
+          fi
+
+          echo "Le verificateur n est ni affaibli ni reconfigure."
+
+  controles:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', cache: 'npm' }
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build
+      - run: npm test
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rapport-playwright
+          path: playwright-report/
+          retention-days: 7
