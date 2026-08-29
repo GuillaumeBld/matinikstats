@@ -26,18 +26,43 @@ jobs:
         run: |
           BASE="${{ github.event.pull_request.base.sha }}"
           HEAD="${{ github.event.pull_request.head.sha }}"
-          TOUCHE=$(git diff --name-only "$BASE" "$HEAD" \
-            | grep -E '^(tests/|playwright\.config\.js|\.github/workflows/)' || true)
-          if [ -n "$TOUCHE" ]; then
-            echo "Cette PR modifie le verificateur:"
-            echo "$TOUCHE"
-            echo ""
-            echo "Cette PR porte le label fusion-auto ET modifie le juge."
-            echo "Les deux ensemble sont interdits: retirer le label et faire"
-            echo "relire par un humain."
+          # On garde l AFFAIBLISSEMENT du verificateur, pas son edition.
+          # Interdire tout changement de test serait trop brutal: aucune PR ne
+          # pourrait plus ajouter de controle, et un correctif arriverait donc
+          # sans sa garantie. Ajouter un test renforce le juge, le retirer
+          # l affaiblit.
+
+          # 1. La configuration et le workflow eux-memes: aucune modification.
+          CONFIG=$(git diff --name-only "$BASE" "$HEAD" \
+            | grep -E '^(playwright\.config\.js|\.github/workflows/)' || true)
+          if [ -n "$CONFIG" ]; then
+            echo "Cette PR modifie la configuration du verificateur:"
+            echo "$CONFIG"
+            echo "Retirer le label fusion-auto et faire relire par un humain."
             exit 1
           fi
-          echo "Le verificateur n est pas touche."
+
+          # 2. Dans tests/, on refuse les SUPPRESSIONS d assertions et de cas.
+          RETIRES=$(git diff -U0 "$BASE" "$HEAD" -- tests/ \
+            | grep -E '^-' | grep -v '^---' \
+            | grep -cE '(expect\(|^\-\s*test\()' || true)
+          if [ "${RETIRES:-0}" -gt 0 ]; then
+            echo "Cette PR retire $RETIRES assertion(s) ou cas de test."
+            git diff -U0 "$BASE" "$HEAD" -- tests/ | grep -E '^-' | grep -v '^---' | head -20
+            echo "Retirer le label fusion-auto et faire relire par un humain."
+            exit 1
+          fi
+
+          # 3. Et les mises en sommeil, qui rendent un test vert sans rien verifier.
+          SOMMEIL=$(git diff -U0 "$BASE" "$HEAD" -- tests/ \
+            | grep -E '^\+' | grep -v '^\+\+\+' \
+            | grep -cE '(test|describe)\.(skip|only|fixme)|\.fixme\(' || true)
+          if [ "${SOMMEIL:-0}" -gt 0 ]; then
+            echo "Cette PR met $SOMMEIL test(s) en sommeil (skip, only, fixme)."
+            exit 1
+          fi
+
+          echo "Le verificateur n est ni affaibli ni reconfigure."
 
   controles:
     runs-on: ubuntu-latest
