@@ -13,7 +13,12 @@ jobs:
   # qu un humain le voie.
   garde-verificateur:
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    # Ne s applique QU AUX PR candidates a la fusion automatique. Sinon la PR
+    # qui introduit ce garde-fou serait bloquee par lui-meme, et la CI resterait
+    # rouge en permanence, ce qui est un mauvais signal: rouge doit vouloir dire
+    # casse, pas "en attente d un humain". Une PR qui touche au verificateur ne
+    # porte simplement pas le label, et un humain la fusionne.
+    if: github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'fusion-auto')
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
@@ -27,8 +32,9 @@ jobs:
             echo "Cette PR modifie le verificateur:"
             echo "$TOUCHE"
             echo ""
-            echo "Une PR qui change le juge ne passe pas la fusion automatique."
-            echo "Relecture humaine obligatoire."
+            echo "Cette PR porte le label fusion-auto ET modifie le juge."
+            echo "Les deux ensemble sont interdits: retirer le label et faire"
+            echo "relire par un humain."
             exit 1
           fi
           echo "Le verificateur n est pas touche."
