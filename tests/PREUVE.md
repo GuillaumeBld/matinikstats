@@ -55,6 +55,31 @@ Contrôle statique sur la source. `ctx.fillStyle` n'accepte pas `var()` :
 l'affectation est ignorée en silence et la couleur précédente reste active, donc
 le PNG sort avec de mauvaises couleurs sans qu'aucune erreur ne soit levée.
 
+## 5. Bandeau de démonstration retiré (`<DemoBanner />` supprimé)
+
+```
+✘ thème dark  · le bandeau de démonstration est visible
+✘ thème light · le bandeau de démonstration est visible
+```
+
+Ce contrôle n'existe pas pour vérifier qu'un composant est monté. Il existe
+parce que sans ce bandeau, le site attribue publiquement à des clubs réels des
+défaites fabriquées. Sa disparition ne doit jamais être silencieuse.
+
+Il teste aussi la **lisibilité**, pas seulement la présence : un bandeau présent
+mais invisible ne dit rien à personne.
+
+## 6. Tampon retiré du PNG généré (`stampDemo(...)` supprimé)
+
+```
+✘ le PNG de partage porte le tampon de démonstration
+```
+
+Le contrôle télécharge réellement la carte, relit le fichier, et compte les
+pixels de la couleur d'alerte dans la bande basse. Il ne se contente pas de
+vérifier l'aperçu à l'écran : c'est le PNG qui part circuler seul dans un fil de
+discussion, sans le site autour et donc sans le bandeau.
+
 ## Ce que ces contrôles ne couvrent pas
 
 À dire, sinon la liste ci-dessus se lit comme une garantie qu'elle n'est pas.

@@ -165,3 +165,76 @@ test('aucune variable CSS passée à un contexte canvas', async () => {
     `${fautes.length} affectation(s) de var() sur un contexte canvas`,
   ).toBe(0);
 });
+
+// Le bandeau de demonstration est la reponse a l issue #1 : le site attribue a
+// des clubs REELS des resultats fabriques. S il disparait, le site redevient
+// trompeur sans qu aucune erreur ne soit levee. Ce controle existe pour que sa
+// suppression ne soit jamais silencieuse.
+for (const theme of THEMES) {
+  test(`thème ${theme} · le bandeau de démonstration est visible`, async ({ page }) => {
+    await boot(page, theme);
+    const r = await page.evaluate(() => {
+      const b = document.querySelector('.p4t-demo-banner');
+      if (!b) return null;
+      const q = b.getBoundingClientRect();
+      const st = getComputedStyle(b);
+      return {
+        hauteur: Math.round(q.height),
+        haut: Math.round(q.top),
+        texte: b.textContent.replace(/\s+/g, ' ').trim(),
+        couleur: st.color,
+        fond: st.backgroundColor,
+      };
+    });
+    expect(r, 'bandeau de démonstration absent').not.toBeNull();
+    expect(r.hauteur, 'bandeau de hauteur nulle').toBeGreaterThan(10);
+    expect(r.haut, 'bandeau hors écran').toBeLessThan(200);
+    expect(r.texte).toContain('fabriqués');
+    // Il doit aussi etre LISIBLE : un bandeau present mais invisible ne dit rien.
+    const ecart = Math.abs(luminance(r.couleur) - luminance(r.fond));
+    expect(ecart, `bandeau ${r.couleur} sur ${r.fond}`).toBeGreaterThan(60);
+  });
+}
+
+// Une carte de partage part circuler seule, sans le bandeau. Elle doit porter
+// la mention elle-meme, dans le PNG, pas seulement dans l apercu.
+test('le PNG de partage porte le tampon de démonstration', async ({ page }, testInfo) => {
+  await boot(page, 'dark');
+  await page.evaluate(() => (document.documentElement.scrollTop = 1500));
+  await page.waitForTimeout(600);
+  await page.evaluate(() => {
+    const s = document.querySelector('[aria-label="Partager ce highlight"]');
+    if (s) s.click();
+  });
+  await page.waitForTimeout(900);
+  const [dl] = await Promise.all([
+    page.waitForEvent('download'),
+    page.evaluate(() => {
+      const b = [...document.querySelectorAll('button')].find((x) => /Télécharger/.test(x.textContent));
+      if (b) b.click();
+    }),
+  ]);
+  const chemin = testInfo.outputPath('carte.png');
+  await dl.saveAs(chemin);
+  const taille = fs.statSync(chemin).size;
+  expect(taille, 'PNG vide').toBeGreaterThan(10000);
+
+  // On relit le PNG dans une page et on compte les pixels de la couleur d alerte
+  // dans la bande basse, la ou le tampon est dessine.
+  const rouges = await page.evaluate(async (dataUrl) => {
+    const img = new Image();
+    await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = dataUrl; });
+    const c = document.createElement('canvas');
+    c.width = img.width; c.height = img.height;
+    const x = c.getContext('2d');
+    x.drawImage(img, 0, 0);
+    const y0 = img.height - 60;
+    const d = x.getImageData(Math.round(img.width * 0.2), y0, Math.round(img.width * 0.6), 50).data;
+    let n = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      if (d[i] > 150 && d[i + 1] < 110 && d[i + 2] < 95) n++;
+    }
+    return n;
+  }, 'data:image/png;base64,' + fs.readFileSync(chemin).toString('base64'));
+  expect(rouges, 'aucun tampon de démonstration dans le PNG').toBeGreaterThan(200);
+});

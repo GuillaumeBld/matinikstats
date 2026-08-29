@@ -50,6 +50,18 @@ sub src/App.jsx \
 run "variable CSS passée à un contexte canvas"
 git checkout -q src/App.jsx
 
+echo "=== 5. bandeau de demonstration retire ==="
+sub src/App.jsx '      <DemoBanner />
+' ''
+run "bandeau de démonstration est visible"
+git checkout -q src/App.jsx
+
+echo "=== 6. tampon retire du PNG genere ==="
+sub src/App.jsx '    stampDemo(ctx, w, h);
+' ''
+run "PNG de partage porte le tampon"
+git checkout -q src/App.jsx
+
 echo "=== etat restaure ==="
 git status --short src/App.jsx
 echo "(vide = restaure)"

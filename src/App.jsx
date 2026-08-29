@@ -728,6 +728,22 @@ const HIGHLIGHTS = [
 
 /* Bascule clair/sombre. Par defaut on suit le reglage du systeme ; des que
    le visiteur choisit, son choix est retenu et gagne sur le systeme. */
+// Bandeau de demonstration. Permanent, colle sous la barre de navigation, sur
+// toutes les vues et dans les deux themes. Les clubs, les communes et les
+// salles sont reels; tout le reste est fabrique. Sans cette mention, un
+// visiteur lit "Waks Basket Club, 4 matchs, 0 victoire" et le croit, et on
+// attribue publiquement a des clubs reels des defaites qu'ils n'ont pas subies.
+// Une mention en pied de page ne suffit pas: personne ne descend.
+function DemoBanner() {
+  return (
+    <div className="p4t-demo-banner" role="note">
+      <strong>DÉMONSTRATION.</strong> Les clubs, les communes et les salles sont réels.
+      Tous les matchs, scores, joueurs et records affichés sont fabriqués pour montrer
+      à quoi ressemblera la plateforme.
+    </div>
+  );
+}
+
 function ThemeToggle() {
   const [theme, setTheme] = useState(() => {
     try {
@@ -983,6 +999,19 @@ const HIGHLIGHT_SHARE_COLORS = {
   buzzer: { accent: 'var(--ink)', glowA: 'rgba(246,240,228,0.2)', glowB: 'rgba(246,245,240,0.03)' },
 };
 
+// Une carte de partage part circuler seule, dans un fil de discussion, sans le
+// site autour et donc sans le bandeau. Elle doit porter la mention elle-meme,
+// sinon elle se lit comme un vrai resultat. C'est le canal que la revue de
+// conception designe comme le risque principal.
+function stampDemo(ctx, w, h) {
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(224,82,60,0.92)';
+  ctx.font = '700 17px Inter, sans-serif';
+  ctx.fillText('DÉMO · DONNÉES SIMULÉES', w / 2, h - 26);
+  ctx.restore();
+}
+
 function HighlightShareModal({ highlight, onClose }) {
   const meta = HIGHLIGHT_TYPES[highlight.type];
   const Icon = meta.icon;
@@ -1041,6 +1070,8 @@ function HighlightShareModal({ highlight, onClose }) {
     ctx.fillStyle = SHARE.amber;
     ctx.font = "600 18px Inter, sans-serif";
     ctx.fillText('matinikstats.mq', w - 48, 950);
+
+    stampDemo(ctx, w, h);
 
     const link = document.createElement('a');
     link.download = `${player.name.replace(/\s+/g, '-').toLowerCase()}-highlight-matinikstats.png`;
@@ -1155,7 +1186,7 @@ function TeamCalendarView({ team, onOpenMatch, onSelectTeam, onOpenPlayer }) {
     <>
       <div className="p4t-section-head">
         <h2 className="p4t-section-title">Calendrier</h2>
-        <span className="p4t-section-count">{all.length} rencontres</span>
+        <span className="p4t-section-count"><span className="p4t-demo-tag">démo</span> {all.length} rencontres</span>
       </div>
 
       {upcoming.length > 0 && (
@@ -1285,6 +1316,8 @@ function MatchShareModal({ match, roster, onClose }) {
     ctx.fillStyle = SHARE.amber;
     ctx.font = "600 18px Inter, sans-serif";
     ctx.fillText('matinikstats.mq', w / 2, 950);
+
+    stampDemo(ctx, w, h);
 
     const link = document.createElement('a');
     link.download = `match-${match.id}-matinikstats.png`;
@@ -1590,6 +1623,8 @@ function ShareCardModal({ player, team, career, onClose }) {
     ctx.fillStyle = SHARE.amber;
     ctx.font = "600 18px Inter, sans-serif";
     ctx.fillText('matinikstats.mq', w - 48, 940);
+
+    stampDemo(ctx, w, h);
 
     const link = document.createElement('a');
     link.download = `${player.name.replace(/\s+/g, '-').toLowerCase()}-matinikstats.png`;
@@ -1949,7 +1984,7 @@ function PlatformHome({ onSelectTeam, onOpenMatch, onOpenPlayer, onShowAllMatche
 
         <div className="p4t-section-head">
           <h2 className="p4t-section-title">Classement</h2>
-          <span className="p4t-section-count">{standings.length} clubs</span>
+          <span className="p4t-section-count"><span className="p4t-demo-tag">démo</span> {standings.length} clubs</span>
         </div>
         <CompetitionFilter value={standingsComp} onChange={setStandingsComp} />
         {standings.length > 0 ? (
@@ -2456,7 +2491,7 @@ function AllStandingsView({ onSelectTeam, onBack }) {
         <button className="p4t-back-btn" onClick={onBack}><ArrowLeft size={15} /> Accueil</button>
         <div className="p4t-section-head">
           <h2 className="p4t-section-title">Classement</h2>
-          <span className="p4t-section-count">{standings.length} clubs</span>
+          <span className="p4t-section-count"><span className="p4t-demo-tag">démo</span> {standings.length} clubs</span>
         </div>
         <CompetitionFilter value={comp} onChange={setComp} />
         {standings.length > 0 ? (
@@ -2871,6 +2906,8 @@ export default function App() {
           --heat: #FFB020;
           --shadow: rgba(0,0,0,.45);
           --nav-bg: rgba(18,14,10,0.92);
+          --demo-bg: rgba(38,20,14,0.92);
+          --demo-line: rgba(224,82,60,0.38);
           --font-display: 'Anton', sans-serif;
           --font-body: 'Manrope', sans-serif;
           --font-mono: 'IBM Plex Mono', monospace;
@@ -2891,6 +2928,8 @@ export default function App() {
           --heat: #A96A00;
           --shadow: rgba(60,45,25,.16);
           --nav-bg: rgba(251,247,239,0.92);
+          --demo-bg: rgba(252,238,232,0.94);
+          --demo-line: rgba(191,59,36,0.32);
         }
         html, body { background: var(--bg); }
         .p4t-app {
@@ -2925,6 +2964,27 @@ export default function App() {
           justify-content: center; padding: 6px; border-radius: 7px;
         }
         .p4t-home-btn:hover { color: var(--ink); background: var(--panel); }
+        /* Bandeau de demonstration: colle sous la nav, jamais masque, lisible
+           dans les deux themes. Il utilise la couleur d alerte, la seule du
+           systeme, et c est le bon endroit pour la depenser. */
+        .p4t-demo-banner {
+          position: sticky; top: 61px; z-index: 19;
+          padding: 9px 24px; font-size: 12.5px; line-height: 1.45;
+          color: var(--ink); background: var(--demo-bg);
+          border-bottom: 1px solid var(--demo-line);
+          backdrop-filter: blur(10px);
+        }
+        .p4t-demo-banner strong { color: var(--red); letter-spacing: .04em; }
+        .p4t-demo-tag {
+          display: inline-block; font-family: var(--font-mono);
+          font-size: 9.5px; text-transform: uppercase; letter-spacing: .08em;
+          color: var(--red); border: 1px solid var(--red); border-radius: 4px;
+          padding: 0 5px; margin-right: 7px; vertical-align: 1px;
+        }
+        @media (max-width: 700px) {
+          .p4t-demo-banner { padding: 8px 16px; font-size: 11.5px; }
+        }
+
         .p4t-theme-btn {
           flex: none; display: flex; align-items: center; justify-content: center;
           width: 32px; height: 32px; border-radius: 9px;
@@ -3538,6 +3598,8 @@ export default function App() {
         <SearchBox variant="nav" placeholder="Chercher…" items={globalSearchableItems} onSelect={handleGlobalSearchSelect} />
         <ThemeToggle />
       </nav>
+
+      <DemoBanner />
 
       <BackdropFilm />
 
