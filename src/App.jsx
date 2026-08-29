@@ -4,8 +4,10 @@ import {
 } from 'recharts';
 import {
   Search, ArrowLeft, Users, TrendingUp, Zap, Footprints, Clock, Target, X,
-  ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Layers, Share2, Wind, Activity, Flame, Star, Shield, Shuffle, Trophy, Play, Download,
+  ChevronUp, ChevronDown, Sun, Moon, ChevronLeft, ChevronRight, Layers, Share2, Wind, Activity, Flame, Star, Shield, Shuffle, Trophy, Play, Download,
 } from 'lucide-react';
+import AsciiField from './AsciiField.jsx';
+import BackdropFilm from './BackdropFilm.jsx';
 
 /* =========================================================================
    MOCK DATA — structure calquée sur la sortie attendue du pipeline PIX4TEAM.
@@ -708,6 +710,47 @@ const HIGHLIGHTS = [
   { id: 'h10', type: 'buzzer', playerId: 'usacfloreal-p1', teamId: 'usacfloreal', opponent: 'Waks Basket Club',      opponentTeamId: 'waks',        duration: '0:04' },
 ];
 
+/* Bascule clair/sombre. Par defaut on suit le reglage du systeme ; des que
+   le visiteur choisit, son choix est retenu et gagne sur le systeme. */
+function ThemeToggle() {
+  const [theme, setTheme] = useState(() => {
+    try {
+      const saved = localStorage.getItem('matinik-theme');
+      if (saved === 'light' || saved === 'dark') return saved;
+    } catch (e) { /* stockage indisponible : on retombe sur le systeme */ }
+    return matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    try { localStorage.setItem('matinik-theme', theme); } catch (e) { /* sans effet */ }
+  }, [theme]);
+
+  // Tant que le visiteur n'a rien choisi, on continue de suivre le systeme.
+  useEffect(() => {
+    const mq = matchMedia('(prefers-color-scheme: light)');
+    const onChange = (e) => {
+      let chosen = null;
+      try { chosen = localStorage.getItem('matinik-theme'); } catch (err) { /* sans effet */ }
+      if (!chosen) setTheme(e.matches ? 'light' : 'dark');
+    };
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+
+  const next = theme === 'dark' ? 'light' : 'dark';
+  return (
+    <button
+      className="p4t-theme-btn"
+      onClick={() => setTheme(next)}
+      aria-label={next === 'light' ? 'Passer en thème clair' : 'Passer en thème sombre'}
+      title={next === 'light' ? 'Thème clair' : 'Thème sombre'}
+    >
+      {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+    </button>
+  );
+}
+
 /* =========================================================================
    PETITS COMPOSANTS
    ========================================================================= */
@@ -916,12 +959,12 @@ function LeagueMatchCard({ item, onOpenMatch, onSelectTeam, onOpenPlayer }) {
 }
 
 const HIGHLIGHT_SHARE_COLORS = {
-  dunk:  { accent: '#d6402e', glowA: 'rgba(214,64,46,0.4)',  glowB: 'rgba(214,64,46,0.04)' },
-  '3pts': { accent: '#279247', glowA: 'rgba(39,146,71,0.35)', glowB: 'rgba(39,146,71,0.04)' },
-  block: { accent: '#f6f5f0', glowA: 'rgba(246,245,240,0.2)', glowB: 'rgba(246,245,240,0.03)' },
-  assist: { accent: '#279247', glowA: 'rgba(39,146,71,0.35)', glowB: 'rgba(39,146,71,0.04)' },
-  move:  { accent: '#d6402e', glowA: 'rgba(214,64,46,0.4)',  glowB: 'rgba(214,64,46,0.04)' },
-  buzzer: { accent: '#f6f5f0', glowA: 'rgba(246,245,240,0.2)', glowB: 'rgba(246,245,240,0.03)' },
+  dunk:  { accent: 'var(--amber)', glowA: 'rgba(255,176,32,0.4)',  glowB: 'rgba(255,176,32,0.04)' },
+  '3pts': { accent: 'var(--teal)', glowA: 'rgba(47,168,160,0.35)', glowB: 'rgba(47,168,160,0.04)' },
+  block: { accent: 'var(--ink)', glowA: 'rgba(246,240,228,0.2)', glowB: 'rgba(246,245,240,0.03)' },
+  assist: { accent: 'var(--teal)', glowA: 'rgba(47,168,160,0.35)', glowB: 'rgba(47,168,160,0.04)' },
+  move:  { accent: 'var(--amber)', glowA: 'rgba(255,176,32,0.4)',  glowB: 'rgba(255,176,32,0.04)' },
+  buzzer: { accent: 'var(--ink)', glowA: 'rgba(246,240,228,0.2)', glowB: 'rgba(246,245,240,0.03)' },
 };
 
 function HighlightShareModal({ highlight, onClose }) {
@@ -943,15 +986,15 @@ function HighlightShareModal({ highlight, onClose }) {
     glow.addColorStop(1, colors.glowB);
     ctx.fillStyle = glow;
     ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = '#d6402e';
+    ctx.fillStyle = 'var(--amber)';
     ctx.fillRect(0, 0, w, 6);
 
     ctx.textAlign = 'left';
-    ctx.fillStyle = '#f6f5f0';
+    ctx.fillStyle = 'var(--ink)';
     ctx.font = "600 24px Oswald, sans-serif";
     ctx.fillText('MATINIKSTATS', 48, 76);
     ctx.textAlign = 'right';
-    ctx.fillStyle = '#9c9c96';
+    ctx.fillStyle = 'var(--ink-dim)';
     ctx.font = "400 18px Inter, sans-serif";
     ctx.fillText('HIGHLIGHT', w - 48, 76);
 
@@ -960,15 +1003,15 @@ function HighlightShareModal({ highlight, onClose }) {
     ctx.font = "700 84px Oswald, sans-serif";
     ctx.fillText(meta.label.toUpperCase(), 48, 400);
 
-    ctx.fillStyle = '#9c9c96';
+    ctx.fillStyle = 'var(--ink-dim)';
     ctx.font = "500 22px 'JetBrains Mono', monospace";
     ctx.fillText(highlight.duration, 48, 446);
 
-    ctx.fillStyle = '#f6f5f0';
+    ctx.fillStyle = 'var(--ink)';
     ctx.font = "700 54px Oswald, sans-serif";
     const nameY = wrapCanvasText(ctx, player.name, 48, 600, w - 96, 58);
 
-    ctx.fillStyle = '#9c9c96';
+    ctx.fillStyle = 'var(--ink-dim)';
     ctx.font = "400 22px Inter, sans-serif";
     ctx.fillText(`${teamName(highlight.teamId)} · vs ${highlight.opponent}`, 48, nameY + 50);
 
@@ -979,7 +1022,7 @@ function HighlightShareModal({ highlight, onClose }) {
     ctx.stroke();
 
     ctx.textAlign = 'right';
-    ctx.fillStyle = '#d6402e';
+    ctx.fillStyle = 'var(--amber)';
     ctx.font = "600 18px Inter, sans-serif";
     ctx.fillText('matinikstats.mq', w - 48, 950);
 
@@ -1102,7 +1145,14 @@ function TeamCalendarView({ team, onOpenMatch, onSelectTeam, onOpenPlayer }) {
       {upcoming.length > 0 && (
         <>
           <h3 className="p4t-subsection-title">À venir</h3>
-          <div className="p4t-fixture-list">
+          <div className="p4t-fixture-list p4t-fixture-list-pending">
+            <AsciiField
+              className="p4t-pending-field"
+              seeds={upcoming.slice(0, 6).map((m) => `${team.name} VS ${m.opponent}`.toUpperCase())}
+              alpha={0.4}
+              speed={0.55}
+              converge={0}
+            />
             {upcoming.map((m) => (
               <div key={m.id} className="p4t-fixture-row">
                 <span className="p4t-fixture-date">{formatDate(m.date)}</span>
@@ -1167,45 +1217,45 @@ function MatchShareModal({ match, roster, onClose }) {
     ctx.fillStyle = '#111111';
     ctx.fillRect(0, 0, w, h);
     const glow = ctx.createRadialGradient(w * 0.18, h * 0.1, 20, w * 0.18, h * 0.1, 460);
-    glow.addColorStop(0, 'rgba(39,146,71,0.28)');
-    glow.addColorStop(1, 'rgba(39,146,71,0)');
+    glow.addColorStop(0, 'rgba(47,168,160,0.28)');
+    glow.addColorStop(1, 'rgba(47,168,160,0)');
     ctx.fillStyle = glow;
     ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = '#d6402e';
+    ctx.fillStyle = 'var(--amber)';
     ctx.fillRect(0, 0, w, 6);
 
     ctx.textAlign = 'left';
-    ctx.fillStyle = '#f6f5f0';
+    ctx.fillStyle = 'var(--ink)';
     ctx.font = "600 24px Oswald, sans-serif";
     ctx.fillText('MATINIKSTATS', 48, 76);
     ctx.textAlign = 'right';
-    ctx.fillStyle = '#9c9c96';
+    ctx.fillStyle = 'var(--ink-dim)';
     ctx.font = "400 18px Inter, sans-serif";
     ctx.fillText(formatDate(match.date).toUpperCase(), w - 48, 76);
 
     ctx.textAlign = 'center';
-    ctx.fillStyle = '#9c9c96';
+    ctx.fillStyle = 'var(--ink-dim)';
     ctx.font = "600 20px Inter, sans-serif";
     let y = wrapCanvasText(ctx, match.homeLabel.toUpperCase(), w / 2, 200, w - 140, 26);
 
-    ctx.fillStyle = '#f6f5f0';
+    ctx.fillStyle = 'var(--ink)';
     ctx.font = "700 130px 'JetBrains Mono', monospace";
     ctx.fillText(String(match.homeScore), w / 2, y + 130);
 
-    ctx.fillStyle = '#9c9c96';
+    ctx.fillStyle = 'var(--ink-dim)';
     ctx.font = "700 34px Oswald, sans-serif";
     ctx.fillText('—', w / 2, y + 190);
 
-    ctx.fillStyle = '#f6f5f0';
+    ctx.fillStyle = 'var(--ink)';
     ctx.font = "700 130px 'JetBrains Mono', monospace";
     ctx.fillText(String(match.awayScore), w / 2, y + 330);
 
-    ctx.fillStyle = '#9c9c96';
+    ctx.fillStyle = 'var(--ink-dim)';
     ctx.font = "600 20px Inter, sans-serif";
     wrapCanvasText(ctx, match.awayLabel.toUpperCase(), w / 2, y + 380, w - 140, 26);
 
     if (topPlayer) {
-      ctx.fillStyle = '#d6402e';
+      ctx.fillStyle = 'var(--amber)';
       ctx.font = "600 24px Inter, sans-serif";
       ctx.fillText(`${topPlayer.name.split(' ')[0]} — ${top.pts} pts`, w / 2, 780);
     }
@@ -1216,7 +1266,7 @@ function MatchShareModal({ match, roster, onClose }) {
     ctx.lineTo(w - 48, 900);
     ctx.stroke();
 
-    ctx.fillStyle = '#d6402e';
+    ctx.fillStyle = 'var(--amber)';
     ctx.font = "600 18px Inter, sans-serif";
     ctx.fillText('matinikstats.mq', w / 2, 950);
 
@@ -1457,38 +1507,38 @@ function ShareCardModal({ player, team, career, onClose }) {
     ctx.fillStyle = '#111111';
     ctx.fillRect(0, 0, w, h);
     const glow = ctx.createRadialGradient(w * 0.85, h * 0.08, 20, w * 0.85, h * 0.08, 420);
-    glow.addColorStop(0, 'rgba(214,64,46,0.35)');
-    glow.addColorStop(1, 'rgba(214,64,46,0)');
+    glow.addColorStop(0, 'rgba(255,176,32,0.35)');
+    glow.addColorStop(1, 'rgba(255,176,32,0)');
     ctx.fillStyle = glow;
     ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = '#d6402e';
+    ctx.fillStyle = 'var(--amber)';
     ctx.fillRect(0, 0, w, 6);
 
     ctx.textAlign = 'left';
-    ctx.fillStyle = '#f6f5f0';
+    ctx.fillStyle = 'var(--ink)';
     ctx.font = "600 24px Oswald, sans-serif";
     ctx.fillText('MATINIKSTATS', 48, 76);
     ctx.textAlign = 'right';
-    ctx.fillStyle = '#9c9c96';
+    ctx.fillStyle = 'var(--ink-dim)';
     ctx.font = "400 18px Inter, sans-serif";
     ctx.fillText('Saison 2025–2026', w - 48, 76);
 
     ctx.textAlign = 'left';
-    ctx.fillStyle = '#d6402e';
+    ctx.fillStyle = 'var(--amber)';
     ctx.font = "600 20px Inter, sans-serif";
     ctx.fillText(team.name.toUpperCase(), 48, 150);
-    ctx.fillStyle = '#9c9c96';
+    ctx.fillStyle = 'var(--ink-dim)';
     ctx.font = "400 17px Inter, sans-serif";
     ctx.fillText(`${team.commune} · ${team.region}`, 48, 176);
 
-    ctx.fillStyle = '#f6f5f0';
+    ctx.fillStyle = 'var(--ink)';
     ctx.font = "700 66px Oswald, sans-serif";
     const nameBottomY = wrapCanvasText(ctx, player.name, 48, 280, w - 96, 70);
 
-    ctx.fillStyle = '#d6402e';
+    ctx.fillStyle = 'var(--amber)';
     ctx.font = "700 28px Oswald, sans-serif";
     ctx.fillText(`#${player.number}`, 48, nameBottomY + 54);
-    ctx.fillStyle = '#9c9c96';
+    ctx.fillStyle = 'var(--ink-dim)';
     ctx.font = "400 22px Inter, sans-serif";
     ctx.fillText(player.position, 48 + ctx.measureText(`#${player.number}  `).width, nameBottomY + 54);
 
@@ -1502,10 +1552,10 @@ function ShareCardModal({ player, team, career, onClose }) {
     ctx.textAlign = 'center';
     stats.forEach((s, i) => {
       const cx = blockW * i + blockW / 2;
-      ctx.fillStyle = '#f6f5f0';
+      ctx.fillStyle = 'var(--ink)';
       ctx.font = "700 58px 'JetBrains Mono', monospace";
       ctx.fillText(s.value, cx, statsY);
-      ctx.fillStyle = '#9c9c96';
+      ctx.fillStyle = 'var(--ink-dim)';
       ctx.font = "600 15px Inter, sans-serif";
       ctx.fillText(s.label, cx, statsY + 30);
     });
@@ -1517,11 +1567,11 @@ function ShareCardModal({ player, team, career, onClose }) {
     ctx.stroke();
 
     ctx.textAlign = 'left';
-    ctx.fillStyle = '#9c9c96';
+    ctx.fillStyle = 'var(--ink-dim)';
     ctx.font = "400 17px Inter, sans-serif";
     ctx.fillText(`${career.matchesPlayed} matchs joués cette saison`, 48, 900);
     ctx.textAlign = 'right';
-    ctx.fillStyle = '#d6402e';
+    ctx.fillStyle = 'var(--amber)';
     ctx.font = "600 18px Inter, sans-serif";
     ctx.fillText('matinikstats.mq', w - 48, 940);
 
@@ -1812,7 +1862,7 @@ function PlatformHome({ onSelectTeam, onOpenMatch, onOpenPlayer, onShowAllMatche
   return (
     <>
       <div className="p4t-main">
-        <section className="p4t-hero">
+        <section className="p4t-hero p4t-hero-first">
           <p className="p4t-eyebrow">Martinique</p>
           <h1 className="p4t-hero-title">Le basket antillais, chiffré à la seconde près.</h1>
           <p className="p4t-hero-sub">Le classement de la ligue, les stats de chaque joueur, les temps forts du week-end — tout le basket martiniquais, au même endroit.</p>
@@ -2221,7 +2271,19 @@ function AllCalendarView({ onOpenMatch, onSelectTeam, onBack }) {
           </button>
         </div>
 
-        <div className="p4t-fixture-list">
+        <div className={`p4t-fixture-list${current.fixtures.some((f) => f.homeScore == null) ? ' p4t-fixture-list-pending' : ''}`}>
+          {current.fixtures.some((f) => f.homeScore == null) && (
+            <AsciiField
+              className="p4t-pending-field"
+              seeds={current.fixtures
+                .filter((f) => f.homeScore == null)
+                .slice(0, 6)
+                .map((f) => `${teamName(f.homeTeamId)} VS ${teamName(f.awayTeamId)}`.toUpperCase())}
+              alpha={0.4}
+              speed={0.55}
+              converge={0}
+            />
+          )}
           {current.fixtures.map((f) => {
             const played = f.homeScore != null;
             const competitionId = TEAMS.find((t) => t.id === f.homeTeamId).competitionId;
@@ -2558,6 +2620,13 @@ function TeamComingSoon({ team, onBack }) {
       <div className="p4t-main">
         <button className="p4t-back-btn" onClick={onBack}><ArrowLeft size={15} /> Tous les clubs</button>
         <div className="p4t-comingsoon">
+          <AsciiField
+            className="p4t-comingsoon-field"
+            seeds={[team.name.toUpperCase(), team.commune.toUpperCase(), team.venue.toUpperCase()]}
+            alpha={0.42}
+            speed={0.7}
+            converge={0}
+          />
           <span className="p4t-avatar p4t-avatar-lg p4t-avatar-muted">{initials(team.name).slice(0, 2)}</span>
           <h1 className="p4t-comingsoon-title">{team.name}</h1>
           <p className="p4t-comingsoon-loc">{team.commune} · {team.region}</p>
@@ -2766,30 +2835,64 @@ export default function App() {
   return (
     <div className="p4t-app">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Anton&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
 
+        html, body { background: #120E0A; }
+        /* Les jetons vivent sur :root et non sur .p4t-app, pour que le fond
+           de page suive le theme et que le choix se fasse par un seul
+           attribut data-theme sur documentElement. */
+        :root {
+          --bg: #120E0A;
+          --panel: rgba(28,22,17,.58);
+          --panel-raised: rgba(38,32,26,.66);
+          --line: #3A3128;
+          --ink: #F6F0E4;
+          --ink-dim: #A2937E;
+          --amber: #FFB020;
+          --teal: #2FA8A0;
+          --red: #E0523C;
+          --green: #4FB56A;
+          --heat: #FFB020;
+          --shadow: rgba(0,0,0,.45);
+          --nav-bg: rgba(18,14,10,0.92);
+          --font-display: 'Anton', sans-serif;
+          --font-body: 'Manrope', sans-serif;
+          --font-mono: 'IBM Plex Mono', monospace;
+        }
+        /* Theme clair : le meme parquet vu de jour. L'ambre est assombri,
+           sinon il ne passe pas le contraste sur du papier. */
+        :root[data-theme="light"] {
+          --bg: #FBF7EF;
+          --panel: rgba(243,237,225,.62);
+          --panel-raised: rgba(233,225,209,.7);
+          --line: #DCD2BE;
+          --ink: #1A140D;
+          --ink-dim: #665738;
+          --amber: #A96A00;
+          --teal: #1B7A72;
+          --red: #BF3B24;
+          --green: #2E7D46;
+          --heat: #A96A00;
+          --shadow: rgba(60,45,25,.16);
+          --nav-bg: rgba(251,247,239,0.92);
+        }
+        html, body { background: var(--bg); }
         .p4t-app {
-          --bg: #fcfcfa;
-          --panel: #f3f2ee;
-          --panel-raised: #ebe9e3;
-          --line: #ddd9d1;
-          --ink: #161412;
-          --ink-dim: #6f6b62;
-          --red: #d6402e;
-          --green: #279247;
-          --heat: #d6402e;
-          --font-display: 'Oswald', sans-serif;
-          --font-body: 'Inter', sans-serif;
-          --font-mono: 'JetBrains Mono', monospace;
-          background: var(--bg);
+          background: transparent;
+          position: relative; z-index: 1;
           color: var(--ink);
           font-family: var(--font-body);
           min-height: 100%;
           border-radius: 12px;
-          overflow: hidden;
+          /* Surtout pas overflow:hidden ici : cela cree un conteneur de
+             defilement et neutralise position:sticky a l'interieur, ce qui
+             casse le heros scrube. overflow-x:clip decoupe sans creer ce
+             conteneur. (Le CSS vit dans un template literal : pas de
+             backtick dans ces commentaires.) */
+          overflow-x: clip;
         }
         .p4t-app * { box-sizing: border-box; }
-        .p4t-app button { font-family: inherit; cursor: pointer; }
+        .p4t-app button { font-family: inherit; cursor: pointer; color: inherit; }
         .p4t-app :focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
 
         .p4t-pm-pos { color: var(--green); }
@@ -2799,13 +2902,21 @@ export default function App() {
         .p4t-nav {
           display: flex; align-items: center; gap: 20px;
           padding: 14px 24px; border-bottom: 1px solid var(--line);
-          background: rgba(252,252,250,0.9); position: sticky; top: 0; z-index: 20;
+          background: var(--nav-bg); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 20;
         }
         .p4t-home-btn {
           background: none; border: none; color: var(--ink-dim); display: flex; align-items: center;
           justify-content: center; padding: 6px; border-radius: 7px;
         }
         .p4t-home-btn:hover { color: var(--ink); background: var(--panel); }
+        .p4t-theme-btn {
+          flex: none; display: flex; align-items: center; justify-content: center;
+          width: 32px; height: 32px; border-radius: 9px;
+          background: var(--panel); border: 1px solid var(--line); color: var(--ink-dim);
+          transition: color .15s, border-color .15s, background .15s;
+        }
+        .p4t-theme-btn:hover { color: var(--amber); border-color: var(--amber); }
+
         .p4t-nav-brand {
           font-family: var(--font-display); font-weight: 600; letter-spacing: 0.04em;
           font-size: 17px; display: flex; align-items: center; gap: 8px; margin-right: auto; flex-shrink: 0;
@@ -2877,8 +2988,8 @@ export default function App() {
           width: 20px; height: 20px; border-radius: 5px; display: flex; align-items: center; justify-content: center;
           font-family: var(--font-mono); font-size: 10px; font-weight: 700;
         }
-        .p4t-form-win { background: rgba(39,146,71,0.15); color: var(--green); }
-        .p4t-form-loss { background: rgba(214,64,46,0.15); color: var(--red); }
+        .p4t-form-win { background: rgba(47,168,160,0.15); color: var(--green); }
+        .p4t-form-loss { background: rgba(255,176,32,0.15); color: var(--red); }
         .p4t-form-empty { color: var(--ink-dim); font-size: 12px; }
 
         .p4t-comp-badge {
@@ -2886,9 +2997,9 @@ export default function App() {
           letter-spacing: 0.03em; padding: 3px 8px; border-radius: 5px; border: 1px solid var(--line);
           color: var(--ink-dim); white-space: nowrap; margin-top: 4px;
         }
-        .p4t-comp-badge-r1-m { color: var(--red); border-color: rgba(214,64,46,0.35); background: rgba(214,64,46,0.07); }
+        .p4t-comp-badge-r1-m { color: var(--red); border-color: rgba(255,176,32,0.35); background: rgba(255,176,32,0.07); }
         .p4t-comp-badge-r2-m { color: var(--ink-dim); border-color: var(--line); }
-        .p4t-comp-badge-r1-f { color: var(--green); border-color: rgba(39,146,71,0.35); background: rgba(39,146,71,0.07); }
+        .p4t-comp-badge-r1-f { color: var(--green); border-color: rgba(47,168,160,0.35); background: rgba(47,168,160,0.07); }
 
         .p4t-comp-filter { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 16px; }
         .p4t-comp-filter-btn {
@@ -2905,9 +3016,9 @@ export default function App() {
           font-family: var(--font-mono); font-size: 10px; font-weight: 700; padding: 0 6px; height: 20px;
           border-radius: 5px; display: inline-flex; align-items: center; justify-content: center;
         }
-        .p4t-comp-mini-r1-m { background: rgba(214,64,46,0.15); color: var(--red); }
+        .p4t-comp-mini-r1-m { background: rgba(255,176,32,0.15); color: var(--red); }
         .p4t-comp-mini-r2-m { background: var(--panel-raised); color: var(--ink-dim); border: 1px solid var(--line); }
-        .p4t-comp-mini-r1-f { background: rgba(39,146,71,0.15); color: var(--green); }
+        .p4t-comp-mini-r1-f { background: rgba(47,168,160,0.15); color: var(--green); }
 
         .p4t-records-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
         .p4t-record-card {
@@ -2958,7 +3069,7 @@ export default function App() {
         .p4t-fixture-score { font-family: var(--font-mono); font-weight: 700; font-size: 14px; color: var(--ink); }
         .p4t-fixture-tag {
           font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
-          color: var(--red); background: rgba(214,64,46,0.1); padding: 3px 8px; border-radius: 5px;
+          color: var(--red); background: rgba(255,176,32,0.1); padding: 3px 8px; border-radius: 5px;
         }
 
         .p4t-cal-picker { display: flex; align-items: center; gap: 10px; margin: 4px 0 18px; }
@@ -3039,11 +3150,11 @@ export default function App() {
           padding-top: 6px; font-family: var(--font-display); font-weight: 700; font-size: 20px;
           border: 1px solid var(--line); border-top: 1px dashed var(--line); position: relative; z-index: 1;
         }
-        .p4t-podium-1 .p4t-podium-riser { height: 60px; background: linear-gradient(0deg, rgba(214,64,46,0.28), rgba(214,64,46,0.06)); color: #d6402e; border-color: rgba(214,64,46,0.45); }
-        .p4t-podium-2 .p4t-podium-riser { height: 40px; background: linear-gradient(0deg, rgba(39,146,71,0.24), rgba(39,146,71,0.05)); color: #279247; border-color: rgba(39,146,71,0.4); }
+        .p4t-podium-1 .p4t-podium-riser { height: 60px; background: linear-gradient(0deg, rgba(255,176,32,0.28), rgba(255,176,32,0.06)); color: var(--amber); border-color: rgba(255,176,32,0.45); }
+        .p4t-podium-2 .p4t-podium-riser { height: 40px; background: linear-gradient(0deg, rgba(162,147,126,0.18), rgba(162,147,126,0.04)); color: var(--ink-dim); border-color: var(--line); }
         .p4t-podium-3 .p4t-podium-riser { height: 26px; background: linear-gradient(0deg, rgba(22,20,18,0.14), rgba(22,20,18,0.03)); color: var(--ink); border-color: rgba(22,20,18,0.25); }
-        .p4t-podium-1 .p4t-avatar { border-color: #d6402e; color: #d6402e; }
-        .p4t-podium-2 .p4t-avatar { border-color: #279247; color: #279247; }
+        .p4t-podium-1 .p4t-avatar { border-color: var(--amber); color: var(--amber); }
+        .p4t-podium-2 .p4t-avatar { border-color: var(--teal); color: var(--teal); }
         .p4t-podium-3 .p4t-avatar { border-color: var(--ink); color: var(--ink); }
 
         .p4t-highlight-row { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 6px; scroll-snap-type: x proximity; }
@@ -3056,26 +3167,26 @@ export default function App() {
         }
         .p4t-highlight-card:hover { border-color: var(--red); transform: translateY(-2px); }
         .p4t-highlight-thumb { position: relative; height: 106px; display: flex; align-items: center; justify-content: center; }
-        .p4t-highlight-thumb-dunk  { background: linear-gradient(135deg, rgba(214,64,46,0.4), rgba(214,64,46,0.18)); }
-        .p4t-highlight-thumb-3pts  { background: linear-gradient(135deg, rgba(39,146,71,0.32), rgba(214,64,46,0.16)); }
-        .p4t-highlight-thumb-block { background: linear-gradient(135deg, rgba(43,51,64,0.95), rgba(39,146,71,0.22)); }
+        .p4t-highlight-thumb-dunk  { background: linear-gradient(135deg, rgba(255,176,32,0.4), rgba(255,176,32,0.18)); }
+        .p4t-highlight-thumb-3pts  { background: linear-gradient(135deg, rgba(47,168,160,0.32), rgba(255,176,32,0.16)); }
+        .p4t-highlight-thumb-block { background: linear-gradient(135deg, rgba(28,22,17,0.96), rgba(47,168,160,0.22)); }
         .p4t-highlight-play {
           width: 38px; height: 38px; border-radius: 50%; background: rgba(18,22,29,0.55);
-          border: 1.5px solid rgba(246,245,240,0.55); color: #f6f5f0; display: flex; align-items: center;
+          border: 1.5px solid rgba(246,240,228,0.55); color: var(--ink); display: flex; align-items: center;
           justify-content: center; padding-left: 3px;
         }
         .p4t-highlight-badge {
           position: absolute; top: 8px; left: 8px; display: flex; align-items: center; gap: 4px;
-          background: rgba(18,22,29,0.72); border-radius: 5px; padding: 3px 7px; font-size: 10px;
-          font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; color: #f6f5f0;
+          background: rgba(18,14,10,0.78); border-radius: 5px; padding: 3px 7px; font-size: 10px;
+          font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; color: var(--ink);
         }
         .p4t-highlight-duration {
           position: absolute; bottom: 8px; right: 8px; background: rgba(18,22,29,0.75); border-radius: 5px;
-          padding: 2px 6px; font-family: var(--font-mono); font-size: 10.5px; color: #f6f5f0;
+          padding: 2px 6px; font-family: var(--font-mono); font-size: 10.5px; color: var(--ink);
         }
         .p4t-highlight-share-btn {
           position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; border-radius: 50%;
-          background: rgba(18,22,29,0.72); color: #f6f5f0; display: flex; align-items: center; justify-content: center;
+          background: rgba(18,14,10,0.78); color: var(--ink); display: flex; align-items: center; justify-content: center;
           cursor: pointer;
         }
         .p4t-highlight-share-btn:hover { background: rgba(18,22,29,0.9); }
@@ -3099,7 +3210,95 @@ export default function App() {
         .p4t-leader-value { font-family: var(--font-mono); font-size: 18px; font-weight: 700; color: var(--red); flex-shrink: 0; display: flex; align-items: baseline; gap: 3px; }
         .p4t-leader-unit { font-size: 10.5px; color: var(--ink-dim); font-weight: 400; }
 
-        .p4t-comingsoon { text-align: center; padding: 50px 20px 30px; max-width: 420px; margin: 0 auto; }
+        /* La liste des matchs a venir est la seule zone du site ou la donnee
+           n'existe pas encore. On y fait tourner le champ ASCII : le score
+           n'est pas absent, il n'a pas encore converge. */
+        .p4t-fixture-list-pending { position: relative; isolation: isolate; }
+        .p4t-pending-field {
+          /* Un canvas est un element remplace : des inset opposes ne l'etirent
+             pas, il garde sa taille intrinseque 300x150. Il faut donc lui
+             donner width et height explicitement. */
+          position: absolute; left: -10px; top: -34px; z-index: -1; pointer-events: none;
+          width: calc(100% + 20px); height: calc(100% + 68px);
+          -webkit-mask-image: linear-gradient(to right, transparent, #000 22%, #000 78%, transparent);
+          mask-image: linear-gradient(to right, transparent, #000 22%, #000 78%, transparent);
+        }
+        .p4t-fixture-list-pending .p4t-fixture-row { position: relative; }
+
+        .p4t-comingsoon {
+          text-align: center; padding: 64px 20px 44px; max-width: 460px; margin: 0 auto;
+          position: relative; isolation: isolate;
+        }
+        /* Le champ ASCII occupe la place que la donnee occupera. Il deborde
+           volontairement du bloc de texte : c'est la salle, pas une vignette. */
+        .p4t-comingsoon-field {
+          position: absolute; z-index: -1; pointer-events: none;
+          left: 50%; transform: translateX(-50%);
+          top: -18px; width: min(96vw, 900px); height: calc(100% + 36px);
+          -webkit-mask-image: radial-gradient(ellipse at center, #000 38%, transparent 78%);
+          mask-image: radial-gradient(ellipse at center, #000 38%, transparent 78%);
+        }
+        .p4t-comingsoon > *:not(.p4t-comingsoon-field) { position: relative; }
+
+        /* --- heros scrube ------------------------------------------------ */
+        /* --- fond video ---------------------------------------------------
+           La video est le fond du site : fixe, plein ecran, derriere tout.
+           Le voile au-dessus n'est pas constant, il est pilote au scroll par
+           BackdropFilm : leger en haut ou l'image doit porter, epais plus bas
+           ou c'est le chiffre qui doit porter. */
+        /* z-index NEGATIF, et non 0 : le fond est un enfant de .p4t-app, or un
+           element positionne a z-index 0 peint AU-DESSUS du contenu en flux
+           normal et masque tout le texte, en ne laissant voir que les elements
+           eux-memes positionnes. A -1 il passe derriere le contenu, tout en
+           restant au-dessus du fond transparent de .p4t-app. */
+        .p4t-backdrop { position: fixed; inset: 0; z-index: -1; overflow: hidden; background: var(--bg); }
+        .p4t-backdrop-vid, .p4t-backdrop-poster {
+          position: absolute; inset: 0; width: 100%; height: 100%;
+          object-fit: cover; display: block;
+        }
+        .p4t-backdrop-poster { z-index: 1; transition: opacity .5s ease; }
+        .p4t-backdrop-vid { z-index: 0; }
+        .p4t-backdrop-scrim {
+          position: absolute; inset: 0; z-index: 2;
+          background: var(--bg); opacity: .28;
+        }
+
+        /* La lisibilite ne vient plus de l'effacement de l'image mais d'un flou
+           derriere les surfaces : le fond reste visible et le texte reste net. */
+        .p4t-card, .p4t-match-card, .p4t-fixture-row, .p4t-tile, .p4t-standings,
+        .p4t-comp-tab, .p4t-tab, .p4t-search-wrap, .p4t-podium-card,
+        .p4t-record-card, .p4t-highlight-card, .p4t-featured, .p4t-club-card {
+          backdrop-filter: blur(14px) saturate(1.15);
+          -webkit-backdrop-filter: blur(14px) saturate(1.15);
+        }
+
+        /* Le premier ecran laisse la place a l'image ; le texte y prend une
+           ombre portee, sinon il se pose sur une video en mouvement. */
+        .p4t-hero-first {
+          min-height: 74vh;
+          display: flex; flex-direction: column; justify-content: center;
+        }
+        /* Le premier ecran est une photo. Le texte y est clair dans LES DEUX
+           themes, avec son propre voile sous lui : de l'encre sombre sur une
+           image sombre disparait, et suivre le theme ici serait une erreur. */
+        .p4t-hero-first { position: relative; isolation: isolate; }
+        .p4t-hero-first::before {
+          content: ''; position: absolute; z-index: -1; pointer-events: none;
+          top: -30px; bottom: -30px;
+          left: calc(50% - 50vw); right: calc(50% - 50vw);
+          background: linear-gradient(to bottom,
+            rgba(10,7,5,.10) 0%, rgba(10,7,5,.58) 42%,
+            rgba(10,7,5,.58) 68%, rgba(10,7,5,0) 100%);
+        }
+        .p4t-hero-first .p4t-hero-title { color: #F6F0E4; text-shadow: 0 2px 22px rgba(0,0,0,.6); }
+        .p4t-hero-first .p4t-hero-sub { color: rgba(246,240,228,.9); text-shadow: 0 1px 14px rgba(0,0,0,.6); }
+        .p4t-hero-first .p4t-eyebrow { color: #FFB020; text-shadow: 0 1px 12px rgba(0,0,0,.7); }
+
+        @media (prefers-reduced-motion: reduce) {
+          .p4t-backdrop-vid { display: none; }
+        }
+
+        }
         .p4t-comingsoon-title { font-family: var(--font-display); font-size: 22px; font-weight: 600; margin: 16px 0 4px; }
         .p4t-comingsoon-loc { color: var(--ink-dim); font-size: 13px; margin: 0 0 16px; }
         .p4t-comingsoon-text { color: var(--ink-dim); font-size: 13.5px; line-height: 1.6; }
@@ -3120,8 +3319,8 @@ export default function App() {
         .p4t-chip-primary { display: flex; align-items: center; gap: 4px; color: var(--red); font-weight: 600; }
 
         .p4t-badge { font-family: var(--font-mono); font-size: 11px; font-weight: 700; width: 20px; height: 20px; border-radius: 5px; display: flex; align-items: center; justify-content: center; }
-        .p4t-badge-win { background: rgba(39,146,71,0.15); color: var(--green); }
-        .p4t-badge-loss { background: rgba(214,64,46,0.15); color: var(--heat); }
+        .p4t-badge-win { background: rgba(47,168,160,0.15); color: var(--green); }
+        .p4t-badge-loss { background: rgba(255,176,32,0.15); color: var(--heat); }
 
         .p4t-back-btn {
           display: inline-flex; align-items: center; gap: 6px; background: none; border: none; color: var(--ink-dim);
@@ -3150,50 +3349,50 @@ export default function App() {
         .p4t-sharecard {
           width: 100%; aspect-ratio: 4 / 5; background: #111111; border-radius: 16px; overflow: hidden;
           position: relative; padding: 22px 20px; display: flex; flex-direction: column;
-          background-image: radial-gradient(circle at 85% 6%, rgba(214,64,46,0.35), transparent 45%);
+          background-image: radial-gradient(circle at 85% 6%, rgba(255,176,32,0.35), transparent 45%);
           box-shadow: 0 20px 60px rgba(0,0,0,0.5); font-family: var(--font-body);
         }
-        .p4t-sharecard-topbar { position: absolute; top: 0; left: 0; right: 0; height: 4px; background: #d6402e; }
+        .p4t-sharecard-topbar { position: absolute; top: 0; left: 0; right: 0; height: 4px; background: var(--amber); }
         .p4t-sharecard-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 18px; }
-        .p4t-sharecard-brand { font-family: var(--font-display); font-weight: 600; font-size: 12px; letter-spacing: 0.06em; color: #f6f5f0; }
-        .p4t-sharecard-season { font-size: 10.5px; color: #9c9c96; }
-        .p4t-sharecard-team { font-family: var(--font-display); font-weight: 600; font-size: 12px; letter-spacing: 0.05em; color: #d6402e; }
-        .p4t-sharecard-loc { font-size: 10.5px; color: #9c9c96; margin-bottom: 16px; }
-        .p4t-sharecard-name { font-family: var(--font-display); font-weight: 700; font-size: 27px; color: #f6f5f0; line-height: 1.08; margin-bottom: 8px; }
-        .p4t-sharecard-meta { font-size: 12px; color: #9c9c96; margin-bottom: auto; }
-        .p4t-sharecard-number { color: #d6402e; font-weight: 700; font-family: var(--font-display); margin-right: 6px; }
+        .p4t-sharecard-brand { font-family: var(--font-display); font-weight: 600; font-size: 12px; letter-spacing: 0.06em; color: var(--ink); }
+        .p4t-sharecard-season { font-size: 10.5px; color: var(--ink-dim); }
+        .p4t-sharecard-team { font-family: var(--font-display); font-weight: 600; font-size: 12px; letter-spacing: 0.05em; color: var(--amber); }
+        .p4t-sharecard-loc { font-size: 10.5px; color: var(--ink-dim); margin-bottom: 16px; }
+        .p4t-sharecard-name { font-family: var(--font-display); font-weight: 700; font-size: 27px; color: var(--ink); line-height: 1.08; margin-bottom: 8px; }
+        .p4t-sharecard-meta { font-size: 12px; color: var(--ink-dim); margin-bottom: auto; }
+        .p4t-sharecard-number { color: var(--amber); font-weight: 700; font-family: var(--font-display); margin-right: 6px; }
         .p4t-sharecard-stats { display: flex; justify-content: space-between; margin: 20px 0 14px; }
         .p4t-sharecard-stat { text-align: center; flex: 1; }
-        .p4t-sharecard-stat-value { font-family: var(--font-mono); font-weight: 700; font-size: 24px; color: #f6f5f0; }
-        .p4t-sharecard-stat-label { font-size: 9px; color: #9c9c96; letter-spacing: 0.04em; margin-top: 2px; }
+        .p4t-sharecard-stat-value { font-family: var(--font-mono); font-weight: 700; font-size: 24px; color: var(--ink); }
+        .p4t-sharecard-stat-label { font-size: 9px; color: var(--ink-dim); letter-spacing: 0.04em; margin-top: 2px; }
         .p4t-sharecard-footer {
           display: flex; justify-content: space-between; align-items: center; padding-top: 12px;
-          border-top: 1px solid rgba(255,255,255,0.12); font-size: 10px; color: #9c9c96;
+          border-top: 1px solid rgba(255,255,255,0.12); font-size: 10px; color: var(--ink-dim);
         }
         .p4t-sharecard-footer-center { justify-content: center; }
-        .p4t-sharecard-url { color: #d6402e; font-weight: 600; }
+        .p4t-sharecard-url { color: var(--amber); font-weight: 600; }
 
-        .p4t-sharecard-match { background-image: radial-gradient(circle at 15% 8%, rgba(39,146,71,0.28), transparent 45%); }
+        .p4t-sharecard-match { background-image: radial-gradient(circle at 15% 8%, rgba(47,168,160,0.28), transparent 45%); }
         .p4t-sharecard-matchup { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 2px; margin: 26px 0 16px; }
-        .p4t-sharecard-matchup-team { font-weight: 600; font-size: 12px; color: #9c9c96; text-transform: uppercase; letter-spacing: 0.03em; }
-        .p4t-sharecard-matchup-score { font-family: var(--font-mono); font-weight: 700; font-size: 52px; color: #f6f5f0; line-height: 1.05; }
-        .p4t-sharecard-matchup-sep { color: #9c9c96; font-size: 16px; margin: 0; }
-        .p4t-sharecard-topscorer { text-align: center; color: #d6402e; font-weight: 600; font-size: 14px; margin-bottom: auto; }
+        .p4t-sharecard-matchup-team { font-weight: 600; font-size: 12px; color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.03em; }
+        .p4t-sharecard-matchup-score { font-family: var(--font-mono); font-weight: 700; font-size: 52px; color: var(--ink); line-height: 1.05; }
+        .p4t-sharecard-matchup-sep { color: var(--ink-dim); font-size: 16px; margin: 0; }
+        .p4t-sharecard-topscorer { text-align: center; color: var(--amber); font-weight: 600; font-size: 14px; margin-bottom: auto; }
 
-        .p4t-sharecard-highlight-dunk  { background-image: radial-gradient(circle at 82% 12%, rgba(214,64,46,0.4), transparent 45%); }
-        .p4t-sharecard-highlight-3pts  { background-image: radial-gradient(circle at 82% 12%, rgba(39,146,71,0.35), transparent 45%); }
-        .p4t-sharecard-highlight-block { background-image: radial-gradient(circle at 82% 12%, rgba(246,245,240,0.2), transparent 45%); }
-        .p4t-sharecard-highlight-assist { background-image: radial-gradient(circle at 82% 12%, rgba(39,146,71,0.35), transparent 45%); }
-        .p4t-sharecard-highlight-move { background-image: radial-gradient(circle at 82% 12%, rgba(214,64,46,0.4), transparent 45%); }
-        .p4t-sharecard-highlight-buzzer { background-image: radial-gradient(circle at 82% 12%, rgba(246,245,240,0.2), transparent 45%); }
+        .p4t-sharecard-highlight-dunk  { background-image: radial-gradient(circle at 82% 12%, rgba(255,176,32,0.4), transparent 45%); }
+        .p4t-sharecard-highlight-3pts  { background-image: radial-gradient(circle at 82% 12%, rgba(47,168,160,0.35), transparent 45%); }
+        .p4t-sharecard-highlight-block { background-image: radial-gradient(circle at 82% 12%, rgba(246,240,228,0.2), transparent 45%); }
+        .p4t-sharecard-highlight-assist { background-image: radial-gradient(circle at 82% 12%, rgba(47,168,160,0.35), transparent 45%); }
+        .p4t-sharecard-highlight-move { background-image: radial-gradient(circle at 82% 12%, rgba(255,176,32,0.4), transparent 45%); }
+        .p4t-sharecard-highlight-buzzer { background-image: radial-gradient(circle at 82% 12%, rgba(246,240,228,0.2), transparent 45%); }
         .p4t-sharecard-hl-type { display: flex; align-items: center; gap: 8px; font-family: var(--font-display); font-weight: 700; font-size: 32px; text-transform: uppercase; margin-top: 34px; }
-        .p4t-sharecard-highlight-dunk .p4t-sharecard-hl-type  { color: #d6402e; }
-        .p4t-sharecard-highlight-3pts .p4t-sharecard-hl-type  { color: #279247; }
-        .p4t-sharecard-highlight-block .p4t-sharecard-hl-type { color: #f6f5f0; }
-        .p4t-sharecard-highlight-assist .p4t-sharecard-hl-type { color: #279247; }
-        .p4t-sharecard-highlight-move .p4t-sharecard-hl-type { color: #d6402e; }
-        .p4t-sharecard-highlight-buzzer .p4t-sharecard-hl-type { color: #f6f5f0; }
-        .p4t-sharecard-hl-duration { font-family: var(--font-mono); color: #9c9c96; font-size: 12px; margin-top: 4px; }
+        .p4t-sharecard-highlight-dunk .p4t-sharecard-hl-type  { color: var(--amber); }
+        .p4t-sharecard-highlight-3pts .p4t-sharecard-hl-type  { color: var(--teal); }
+        .p4t-sharecard-highlight-block .p4t-sharecard-hl-type { color: var(--ink); }
+        .p4t-sharecard-highlight-assist .p4t-sharecard-hl-type { color: var(--teal); }
+        .p4t-sharecard-highlight-move .p4t-sharecard-hl-type { color: var(--amber); }
+        .p4t-sharecard-highlight-buzzer .p4t-sharecard-hl-type { color: var(--ink); }
+        .p4t-sharecard-hl-duration { font-family: var(--font-mono); color: var(--ink-dim); font-size: 12px; margin-top: 4px; }
         .p4t-sharecard-hl-name { margin-top: 26px; margin-bottom: 6px; }
 
         .p4t-sharecard-download {
@@ -3282,7 +3481,7 @@ export default function App() {
         .p4t-profile-pos { color: var(--ink-dim); font-size: 13px; margin: 2px 0 0; }
         .p4t-profile-rank {
           display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 12px; font-weight: 600;
-          color: var(--red); background: rgba(214,64,46,0.08); padding: 5px 10px; border-radius: 7px;
+          color: var(--red); background: rgba(255,176,32,0.08); padding: 5px 10px; border-radius: 7px;
         }
 
         .p4t-chart-panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
@@ -3314,7 +3513,10 @@ export default function App() {
           <button className="p4t-tab" onClick={showAllClubs}>Clubs</button>
         </div>
         <SearchBox variant="nav" placeholder="Chercher…" items={globalSearchableItems} onSelect={handleGlobalSearchSelect} />
+        <ThemeToggle />
       </nav>
+
+      <BackdropFilm />
 
       {screen === 'home' && (
         <PlatformHome
