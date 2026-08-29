@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+jobs:
+  # Le VERIFICATEUR ne doit pas etre modifiable par la meme main que le code
+  # qu il juge. Ce job echoue si une PR touche les tests, la config Playwright
+  # ou ce workflow. Ce n est pas une consigne dans un prompt, c est un controle
+  # deterministe: une PR qui change le juge ne peut pas etre fusionnee sans
+  # qu un humain le voie.
+  garde-verificateur:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: La PR touche-t-elle le verificateur
+        run: |
+          BASE="${{ github.event.pull_request.base.sha }}"
+          HEAD="${{ github.event.pull_request.head.sha }}"
+          TOUCHE=$(git diff --name-only "$BASE" "$HEAD" \
+            | grep -E '^(tests/|playwright\.config\.js|\.github/workflows/)' || true)
+          if [ -n "$TOUCHE" ]; then
+            echo "Cette PR modifie le verificateur:"
+            echo "$TOUCHE"
+            echo ""
+            echo "Une PR qui change le juge ne passe pas la fusion automatique."
+            echo "Relecture humaine obligatoire."
+            exit 1
+          fi
+          echo "Le verificateur n est pas touche."
+
+  controles:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', cache: 'npm' }
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build
+      - run: npm test
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rapport-playwright
+          path: playwright-report/
+          retention-days: 7

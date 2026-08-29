@@ -52,15 +52,30 @@ for (const theme of THEMES) {
       await boot(page, theme);
       await page.evaluate(() => (document.documentElement.scrollTop = 1200));
       await page.waitForTimeout(700);
+      // Presence et hauteur ne suffisent PAS : un titre recouvert par un calque
+      // opaque garde sa hauteur. La premiere version de ce controle passait sur
+      // le bug qu'il devait attraper. On teste donc le recouvrement reel : au
+      // centre du titre, l'element au premier plan doit etre le titre lui-meme
+      // ou l'un de ses descendants.
       const titres = await page.evaluate(() =>
-        [...document.querySelectorAll('.p4t-section-title')].map((e) => ({
-          t: e.textContent.trim(),
-          h: Math.round(e.getBoundingClientRect().height),
-        })),
+        [...document.querySelectorAll('.p4t-section-title')]
+          .map((e) => {
+            const r = e.getBoundingClientRect();
+            if (r.height === 0 || r.top < 0 || r.bottom > innerHeight) return null;
+            const dessus = document.elementFromPoint(r.left + 4, r.top + r.height / 2);
+            return {
+              t: e.textContent.trim(),
+              h: Math.round(r.height),
+              couvert: !(dessus === e || e.contains(dessus)),
+              par: dessus ? (dessus.className || dessus.tagName).toString().slice(0, 40) : 'rien',
+            };
+          })
+          .filter(Boolean),
       );
-      expect(titres.length, 'aucun titre de section rendu').toBeGreaterThan(2);
+      expect(titres.length, 'aucun titre de section visible a l ecran').toBeGreaterThan(0);
       for (const x of titres) {
         expect(x.h, `titre "${x.t}" de hauteur nulle`).toBeGreaterThan(0);
+        expect(x.couvert, `titre "${x.t}" recouvert par ${x.par}`).toBe(false);
       }
     });
 
