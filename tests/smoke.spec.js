@@ -322,3 +322,90 @@ test('toutes les combinaisons de l interrupteur se chargent sans erreur', async 
   }
   expect(casses, `combinaisons en échec:\n${casses.join('\n')}`).toEqual([]);
 });
+
+/* --- LE RECEPTACLE DES DONNEES REELLES -----------------------------------
+   Controles sans navigateur, directement sur le chargeur. La regle qu ils
+   protegent: aucun enregistrement n entre sans provenance. C est la seule
+   chose qui distingue une vraie donnee d une donnee fabriquee une fois le
+   chiffre affiche. */
+
+const { chargerReel } = await import('../src/donnees/charger.js');
+const CLUBS = ['etoile', 'carbet'];
+const OK = { source: 'LMBB', releve: '2026-08-29', mode: 'manuel' };
+const match = (p) => ({ id: 'm1', date: '2026-02-01', domicile: 'etoile', visiteur: 'carbet', provenance: p });
+
+test('le chargeur accepte un enregistrement correctement sourcé', () => {
+  const r = chargerReel({ calendrier: [match(OK)] }, CLUBS);
+  expect(r.compte.calendrier).toBe(1);
+  expect(r.compte.joues, 'un match sans score ne doit pas compter comme joué').toBe(0);
+  expect(r.calendrier[0].homeScore, 'un match non joué a un score null, pas zéro').toBeNull();
+});
+
+test('le chargeur REFUSE un enregistrement sans provenance', () => {
+  expect(() => chargerReel({ calendrier: [match(undefined)] }, CLUBS)).toThrow(/provenance absente/);
+  expect(() => chargerReel({ calendrier: [match({ releve: '2026-08-29', mode: 'manuel' })] }, CLUBS)).toThrow(/sans source/);
+  expect(() => chargerReel({ calendrier: [match({ source: 'X', mode: 'manuel' })] }, CLUBS)).toThrow(/date de relevé/);
+  expect(() => chargerReel({ calendrier: [match({ source: 'X', releve: '2026-08-29', mode: 'devine' })] }, CLUBS)).toThrow(/mode "devine" inconnu/);
+});
+
+test('le chargeur signale un club inconnu au lieu de l ignorer', () => {
+  const r = chargerReel({ calendrier: [{ ...match(OK), visiteur: 'club-fantome' }] }, CLUBS);
+  expect(r.clubsInconnus, 'un club inconnu doit être signalé, pas jeté en silence').toContain('club-fantome');
+});
+
+test('le fichier de données réelles du dépôt se charge sans erreur', async () => {
+  const brut = JSON.parse(fs.readFileSync(path.join(HERE, '..', 'src', 'donnees', 'reel.json'), 'utf8'));
+  const r = chargerReel(brut, CLUBS);
+  expect(r.clubsInconnus, `clubs inconnus dans reel.json: ${r.clubsInconnus.join(', ')}`).toEqual([]);
+});
+
+/* --- LA TABLE DE CORRESPONDANCE ------------------------------------------
+   Aucune source publique ne donne d identifiant de club commun, et le
+   rapprochement par nom casse sur des cas reels: REBOND PILOTAIN contre
+   Le Rebond Pilotin, Baloncesto de Floreal contre USAC de Floréal. La table
+   est donc ecrite a la main. Ces controles protegent le fait qu AUCUN
+   rapprochement automatique ne se glisse dans le chargeur. */
+
+const corr = (idSource, teamId) => ({ source: 'CTOS', idSource, teamId, provenance: OK });
+
+test('un identifiant de source se résout par la table, jamais par le nom', () => {
+  // La provenance déclare l'espace de noms: le calendrier vient de la LMBB mais
+  // nomme les clubs avec les libellés du CTOS. C'est le cas réel attendu.
+  const provCTOS = { ...OK, espaceNoms: 'CTOS' };
+  const brut = {
+    correspondances: [corr('REBOND PILOTAIN', 'carbet')],
+    calendrier: [{ id: 'm1', date: '2026-02-01', domicile: 'REBOND PILOTAIN', visiteur: 'etoile', provenance: provCTOS }],
+  };
+  const r = chargerReel(brut, CLUBS);
+  expect(r.calendrier[0].homeTeamId, 'la table doit résoudre').toBe('carbet');
+});
+
+test('un identifiant absent de la table n est PAS deviné', () => {
+  // Volontairement proche d un teamId connu: un rapprocheur naïf le mapperait.
+  const brut = {
+    calendrier: [{ id: 'm1', date: '2026-02-01', domicile: 'Etoile Sportive', visiteur: 'etoile', provenance: OK }],
+  };
+  const r = chargerReel(brut, CLUBS);
+  expect(r.clubsInconnus, 'un nom proche doit être signalé, pas deviné').toContain('Etoile Sportive');
+  expect(r.calendrier.length, 'un match non résolu ne doit pas être affiché').toBe(0);
+});
+
+test('une correspondance peut viser null: la source connaît un club que nous n avons pas', () => {
+  const brut = {
+    correspondances: [corr('THUNDER ROCK DIAMANT', null)],
+    calendrier: [{ id: 'm1', date: '2026-02-01', domicile: 'THUNDER ROCK DIAMANT', visiteur: 'etoile', provenance: { ...OK, espaceNoms: 'CTOS' } }],
+  };
+  const r = chargerReel(brut, CLUBS);
+  expect(r.calendrier.length, 'un match visant un club absent chez nous ne s affiche pas').toBe(0);
+  expect(() => chargerReel(brut, CLUBS), 'mais il ne doit pas faire échouer le chargement').not.toThrow();
+});
+
+test('une correspondance vers un teamId inexistant est refusée', () => {
+  const brut = { correspondances: [corr('X', 'club-qui-n-existe-pas')] };
+  expect(() => chargerReel(brut, CLUBS)).toThrow(/teamId "club-qui-n-existe-pas" inconnu/);
+});
+
+test('une correspondance sans provenance est refusée comme le reste', () => {
+  const brut = { correspondances: [{ source: 'CTOS', idSource: 'X', teamId: 'etoile' }] };
+  expect(() => chargerReel(brut, CLUBS)).toThrow(/provenance absente/);
+});

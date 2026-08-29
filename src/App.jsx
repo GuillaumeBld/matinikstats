@@ -7,6 +7,8 @@ import {
   ChevronUp, ChevronDown, Sun, Moon, ChevronLeft, ChevronRight, Layers, Share2, Wind, Activity, Flame, Star, Shield, Shuffle, Trophy, Play, Download,
 } from 'lucide-react';
 import AsciiField from './AsciiField.jsx';
+import reelBrut from './donnees/reel.json';
+import { chargerReel, sourcesDe } from './donnees/charger.js';
 import BackdropFilm from './BackdropFilm.jsx';
 
 /* =========================================================================
@@ -531,6 +533,25 @@ if (!FAKE.rosters) {
   TEAMS.forEach((t) => { ROSTERS[t.id] = []; });
 }
 
+/* =========================================================================
+   LE REEL PAR-DESSUS LE VIDE
+
+   Le reel gagne toujours sur le fabrique: si une source donne un effectif ou un
+   calendrier, il REMPLACE ce qui existait, il ne s y ajoute pas. Melanger du
+   vrai et de l invente dans la meme liste serait le pire des deux mondes,
+   puisque plus personne ne saurait distinguer les lignes.
+   ========================================================================= */
+const REEL = chargerReel(reelBrut, TEAMS.map((t) => t.id));
+const SOURCES = sourcesDe(REEL);
+
+for (const [clubId, joueurs] of Object.entries(REEL.effectifs)) {
+  if (joueurs.length) ROSTERS[clubId] = joueurs;
+}
+if (REEL.calendrier.length) {
+  FIXTURES.length = 0;
+  FIXTURES.push(...REEL.calendrier);
+}
+
 const LEAGUE = {};
 TEAMS.forEach((t) => {
   LEAGUE[t.id] = { roster: ROSTERS[t.id] || [], matches: buildTeamMatches(t.id) };
@@ -854,16 +875,36 @@ const FAMILLES = {
 };
 
 function DemoBanner() {
-  const inventees = Object.keys(FAMILLES).filter((k) => FAKE[k]);
+  // Le reel ECRASE le fabrique, donc une famille couverte par une source reelle
+  // n est plus inventee, meme si son interrupteur est allume. Sans ce calcul le
+  // bandeau annoncerait comme fabriquees des donnees qui viennent de la ligue.
+  const couvertes = new Set();
+  if (REEL.compte.calendrier > 0) couvertes.add('fixtures');
+  if (REEL.compte.effectifs > 0) couvertes.add('rosters');
 
-  // Un bandeau qui annonce des donnees fabriquees alors qu il n y en a plus
-  // ment dans l autre sens. Il doit donc suivre l interrupteur.
-  if (inventees.length === 0) {
+  const inventees = Object.keys(FAMILLES).filter((k) => FAKE[k] && !couvertes.has(k));
+  const aDuReel = couvertes.size > 0;
+  const sources = SOURCES.map((p) => p.source).join(', ');
+
+  // Trois etats, et le bandeau doit dire celui du moment. Il a deja menti deux
+  // fois dans cette refonte: une fois en annoncant du fabrique quand il n y en
+  // avait plus, une fois en annoncant l attente quand du reel etait arrive.
+  if (inventees.length === 0 && !aDuReel) {
     return (
       <div className="p4t-demo-banner" role="note">
         <strong>EN ATTENTE DE CAPTATION.</strong> Les clubs, les communes et les salles
         sont réels. Aucune statistique n'est encore mesurée: rien de ce qui est affiché
         n'est inventé, il n'y a simplement pas encore de données.
+      </div>
+    );
+  }
+
+  if (inventees.length === 0) {
+    return (
+      <div className="p4t-demo-banner p4t-demo-banner-reel" role="note">
+        <strong>DONNÉES RÉELLES.</strong> Source: {sources}. {REEL.compte.joues} match
+        {REEL.compte.joues > 1 ? 's' : ''} joué{REEL.compte.joues > 1 ? 's' : ''} sur
+        {' '}{REEL.compte.calendrier} au calendrier. Rien de ce qui est affiché n'est inventé.
       </div>
     );
   }
@@ -875,6 +916,7 @@ function DemoBanner() {
       {tout
         ? " Tous les matchs, scores, joueurs et records affichés sont fabriqués pour montrer à quoi ressemblera la plateforme."
         : ` Sont encore fabriqués: ${inventees.map((k) => FAMILLES[k]).join(', ')}. Le reste attend la captation.`}
+      {aDuReel ? ` Données réelles par ailleurs: ${sources}.` : ''}
     </div>
   );
 }
@@ -3146,6 +3188,10 @@ export default function App() {
           backdrop-filter: blur(10px);
         }
         .p4t-demo-banner strong { color: var(--red); letter-spacing: .04em; }
+        /* L etat "donnees reelles" n est pas un avertissement: il ne prend pas
+           la couleur d alerte, qui doit rester reservee au fabrique. */
+        .p4t-demo-banner-reel { background: var(--panel); border-bottom-color: var(--line); }
+        .p4t-demo-banner-reel strong { color: var(--teal); }
         .p4t-demo-tag {
           display: inline-block; font-family: var(--font-mono);
           font-size: 9.5px; text-transform: uppercase; letter-spacing: .08em;

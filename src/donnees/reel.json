@@ -1,0 +1,19 @@
+{
+  "_lisezmoi": "Donnees REELLES. Chaque enregistrement exige une provenance: source, releve au format AAAA-MM-JJ, et mode manuel ou automatique. Sans elle le chargement echoue et nomme la ligne fautive. Voir DONNEES.md.",
+  "_exemple": {
+    "calendrier": [
+      {
+        "id": "exemple-a-supprimer",
+        "date": "2026-02-01",
+        "domicile": "etoile",
+        "visiteur": "carbet",
+        "scoreDomicile": null,
+        "scoreVisiteur": null,
+        "provenance": { "source": "LMBB", "url": "", "releve": "2026-08-29", "mode": "manuel" }
+      }
+    ]
+  },
+  "effectifs": {},
+  "calendrier": [],
+  "feuilles": []
+}
