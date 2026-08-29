@@ -1,19 +1,283 @@
 {
-  "_lisezmoi": "Donnees REELLES. Chaque enregistrement exige une provenance: source, releve au format AAAA-MM-JJ, et mode manuel ou automatique. Sans elle le chargement echoue et nomme la ligne fautive. Voir DONNEES.md.",
-  "_exemple": {
-    "calendrier": [
-      {
-        "id": "exemple-a-supprimer",
-        "date": "2026-02-01",
-        "domicile": "etoile",
-        "visiteur": "carbet",
-        "scoreDomicile": null,
-        "scoreVisiteur": null,
-        "provenance": { "source": "LMBB", "url": "", "releve": "2026-08-29", "mode": "manuel" }
-      }
-    ]
-  },
+  "_lisezmoi": "Donnees REELLES. Chaque enregistrement exige une provenance: source, releve au format AAAA-MM-JJ, et mode manuel ou automatique. La table correspondances est ecrite A LA MAIN: aucun rapprochement automatique par nom, voir DONNEES.md.",
   "effectifs": {},
   "calendrier": [],
-  "feuilles": []
+  "feuilles": [],
+  "correspondances": [
+    {
+      "source": "CTOS",
+      "idSource": "C.S.C CARBET",
+      "teamId": "carbet",
+      "provenance": {
+        "source": "CTOS",
+        "url": "https://www.ctosma.fr/ligues/ligue-de-basket-de-la-martinique/",
+        "releve": "2026-08-29",
+        "mode": "manuel"
+      }
+    },
+    {
+      "source": "CTOS",
+      "idSource": "UNION SPORTIVE DUCOSSAISE",
+      "teamId": "ducos",
+      "provenance": {
+        "source": "CTOS",
+        "url": "https://www.ctosma.fr/ligues/ligue-de-basket-de-la-martinique/",
+        "releve": "2026-08-29",
+        "mode": "manuel"
+      }
+    },
+    {
+      "source": "CTOS",
+      "idSource": "GOLDEN STAR BASKET BALL",
+      "teamId": "etoile",
+      "provenance": {
+        "source": "CTOS",
+        "url": "https://www.ctosma.fr/ligues/ligue-de-basket-de-la-martinique/",
+        "releve": "2026-08-29",
+        "mode": "manuel"
+      }
+    },
+    {
+      "source": "CTOS",
+      "idSource": "GOOD LUCK",
+      "teamId": "goodluck",
+      "provenance": {
+        "source": "CTOS",
+        "url": "https://www.ctosma.fr/ligues/ligue-de-basket-de-la-martinique/",
+        "releve": "2026-08-29",
+        "mode": "manuel"
+      }
+    },
+    {
+      "source": "CTOS",
+      "idSource": "INTREPIDE BASKET CLUB",
+      "teamId": "intrepide",
+      "provenance": {
+        "source": "CTOS",
+        "url": "https://www.ctosma.fr/ligues/ligue-de-basket-de-la-martinique/",
+        "releve": "2026-08-29",
+        "mode": "manuel"
+      }
+    },
+    {
+      "source": "CTOS",
+      "idSource": "U.S.A.C DE FLOREAL",
+      "teamId": "usacfloreal",
+      "provenance": {
+        "source": "CTOS",
+        "url": "https://www.ctosma.fr/ligues/ligue-de-basket-de-la-martinique/",
+        "releve": "2026-08-29",
+        "mode": "manuel"
+      }
+    },
+    {
+      "source": "CTOS",
+      "idSource": "WAKS BASKET CLUB",
+      "teamId": "waks",
+      "provenance": {
+        "source": "CTOS",
+        "url": "https://www.ctosma.fr/ligues/ligue-de-basket-de-la-martinique/",
+        "releve": "2026-08-29",
+        "mode": "manuel"
+      }
+    },
+    {
+      "source": "CTOS",
+      "idSource": "A.S.C AIGLE NOIR",
+      "teamId": "aiglenoir",
+      "provenance": {
+        "source": "CTOS",
+        "url": "https://www.ctosma.fr/ligues/ligue-de-basket-de-la-martinique/",
+        "releve": "2026-08-29",
+        "mode": "manuel"
+      }
+    },
+    {
+      "source": "CTOS",
+      "idSource": "AIGLON",
+      "teamId": "aiglon",
+      "provenance": {
+        "source": "CTOS",
+        "url": "https://www.ctosma.fr/ligues/ligue-de-basket-de-la-martinique/",
+        "releve": "2026-08-29",
+        "mode": "manuel"
+      }
+    },
+    {
+      "source": "CTOS",
+      "idSource": "SPORTING CLUB LAMENTINOIS",
+      "teamId": "sportinglamentin",
+      "provenance": {
+        "source": "CTOS",
+        "url": "https://www.ctosma.fr/ligues/ligue-de-basket-de-la-martinique/",
+        "releve": "2026-08-29",
+        "mode": "manuel"
+      }
+    },
+    {
+      "source": "CTOS",
+      "idSource": "F.R DOMINANTE",
+      "teamId": null,
+      "provenance": {
+        "source": "CTOS",
+        "url": "https://www.ctosma.fr/ligues/ligue-de-basket-de-la-martinique/",
+        "releve": "2026-08-29",
+        "mode": "manuel"
+      }
+    },
+    {
+      "source": "CTOS",
+      "idSource": "HIRONDELLE BASKET CLUB",
+      "teamId": "zandoli",
+      "provenance": {
+        "source": "CTOS",
+        "url": "https://www.ctosma.fr/ligues/ligue-de-basket-de-la-martinique/",
+        "releve": "2026-08-29",
+        "mode": "manuel"
+      }
+    },
+    {
+      "source": "CTOS",
+      "idSource": "REBOND PILOTAIN",
+      "teamId": "soufriere",
+      "provenance": {
+        "source": "CTOS",
+        "url": "https://www.ctosma.fr/ligues/ligue-de-basket-de-la-martinique/",
+        "releve": "2026-08-29",
+        "mode": "manuel"
+      }
+    },
+    {
+      "source": "CTOS",
+      "idSource": "ECLAIR BASKETBALL",
+      "teamId": "ouragan",
+      "provenance": {
+        "source": "CTOS",
+        "url": "https://www.ctosma.fr/ligues/ligue-de-basket-de-la-martinique/",
+        "releve": "2026-08-29",
+        "mode": "manuel"
+      }
+    },
+    {
+      "source": "CTOS",
+      "idSource": "ARSENAL DU ROBERT",
+      "teamId": "trident",
+      "provenance": {
+        "source": "CTOS",
+        "url": "https://www.ctosma.fr/ligues/ligue-de-basket-de-la-martinique/",
+        "releve": "2026-08-29",
+        "mode": "manuel"
+      }
+    },
+    {
+      "source": "CTOS",
+      "idSource": "A.S BLACK STARS",
+      "teamId": "blackstars",
+      "provenance": {
+        "source": "CTOS",
+        "url": "https://www.ctosma.fr/ligues/ligue-de-basket-de-la-martinique/",
+        "releve": "2026-08-29",
+        "mode": "manuel"
+      }
+    },
+    {
+      "source": "CTOS",
+      "idSource": "CURSUS SOLIDAIRE",
+      "teamId": null,
+      "provenance": {
+        "source": "CTOS",
+        "url": "https://www.ctosma.fr/ligues/ligue-de-basket-de-la-martinique/",
+        "releve": "2026-08-29",
+        "mode": "manuel"
+      }
+    },
+    {
+      "source": "CTOS",
+      "idSource": "GOLDEN LION BASKET BALL",
+      "teamId": "kalinago",
+      "provenance": {
+        "source": "CTOS",
+        "url": "https://www.ctosma.fr/ligues/ligue-de-basket-de-la-martinique/",
+        "releve": "2026-08-29",
+        "mode": "manuel"
+      }
+    },
+    {
+      "source": "CTOS",
+      "idSource": "BASKET BALL SAMARITAIN",
+      "teamId": "requins",
+      "provenance": {
+        "source": "CTOS",
+        "url": "https://www.ctosma.fr/ligues/ligue-de-basket-de-la-martinique/",
+        "releve": "2026-08-29",
+        "mode": "manuel"
+      }
+    },
+    {
+      "source": "CTOS",
+      "idSource": "AMICALE CLUB 233",
+      "teamId": null,
+      "provenance": {
+        "source": "CTOS",
+        "url": "https://www.ctosma.fr/ligues/ligue-de-basket-de-la-martinique/",
+        "releve": "2026-08-29",
+        "mode": "manuel"
+      }
+    },
+    {
+      "source": "CTOS",
+      "idSource": "ECOLE OMNISPORTS MUNICIPALE",
+      "teamId": null,
+      "provenance": {
+        "source": "CTOS",
+        "url": "https://www.ctosma.fr/ligues/ligue-de-basket-de-la-martinique/",
+        "releve": "2026-08-29",
+        "mode": "manuel"
+      }
+    },
+    {
+      "source": "CTOS",
+      "idSource": "GAULOISE",
+      "teamId": "gauloise",
+      "provenance": {
+        "source": "CTOS",
+        "url": "https://www.ctosma.fr/ligues/ligue-de-basket-de-la-martinique/",
+        "releve": "2026-08-29",
+        "mode": "manuel"
+      }
+    },
+    {
+      "source": "CTOS",
+      "idSource": "LAREL BASKET CLUB",
+      "teamId": "larel",
+      "provenance": {
+        "source": "CTOS",
+        "url": "https://www.ctosma.fr/ligues/ligue-de-basket-de-la-martinique/",
+        "releve": "2026-08-29",
+        "mode": "manuel"
+      }
+    },
+    {
+      "source": "CTOS",
+      "idSource": "CLUB SPORTIF VAUCLINOIS",
+      "teamId": "vauclinois",
+      "provenance": {
+        "source": "CTOS",
+        "url": "https://www.ctosma.fr/ligues/ligue-de-basket-de-la-martinique/",
+        "releve": "2026-08-29",
+        "mode": "manuel"
+      }
+    },
+    {
+      "source": "RNA",
+      "idSource": "Thunder Rock Diamant Basket Ball",
+      "teamId": null,
+      "provenance": {
+        "source": "RNA",
+        "url": "https://assoce.fr/departement/972/MARTINIQUE/categorie/11065",
+        "releve": "2026-08-29",
+        "mode": "manuel"
+      }
+    }
+  ]
 }

@@ -353,10 +353,39 @@ test('le chargeur signale un club inconnu au lieu de l ignorer', () => {
   expect(r.clubsInconnus, 'un club inconnu doit être signalé, pas jeté en silence').toContain('club-fantome');
 });
 
-test('le fichier de données réelles du dépôt se charge sans erreur', async () => {
+// On extrait les identifiants de TEAMS, et SEULEMENT les identifiants, qui sont
+// des slugs sans apostrophe. Ne jamais extraire les NOMS par expression
+// reguliere: la recherche a failli livrer 19 correspondances au lieu de 20
+// parce qu une regex name: '([^']+)' rate silencieusement L'Intrépide, dont le
+// nom contient une apostrophe et qui est ecrit avec des guillemets doubles.
+function idsDesClubs() {
+  const src = fs.readFileSync(path.join(HERE, '..', 'src', 'App.jsx'), 'utf8');
+  const i = src.indexOf('const TEAMS = [');
+  const bloc = src.slice(i, i + src.slice(i).indexOf('\n];'));
+  return [...bloc.matchAll(/\{\s*id:\s*'([a-z0-9-]+)'/g)].map((m) => m[1]);
+}
+
+test('l extraction des identifiants de clubs est complète', () => {
+  // Garde-fou contre une lecture silencieusement incomplète: si l extraction
+  // sous-lit, tous les controles qui en dependent deviennent faussement verts.
+  expect(idsDesClubs().length, 'l extraction des teamId a sous-lu').toBe(30);
+});
+
+test('le fichier de données réelles du dépôt se charge sans erreur', () => {
   const brut = JSON.parse(fs.readFileSync(path.join(HERE, '..', 'src', 'donnees', 'reel.json'), 'utf8'));
-  const r = chargerReel(brut, CLUBS);
+  const r = chargerReel(brut, idsDesClubs());
   expect(r.clubsInconnus, `clubs inconnus dans reel.json: ${r.clubsInconnus.join(', ')}`).toEqual([]);
+});
+
+test('les correspondances du dépôt sont saines', () => {
+  const brut = JSON.parse(fs.readFileSync(path.join(HERE, '..', 'src', 'donnees', 'reel.json'), 'utf8'));
+  const ids = idsDesClubs();
+  const c = brut.correspondances || [];
+  expect(c.length, 'aucune correspondance').toBeGreaterThan(0);
+  const vises = c.map((x) => x.teamId).filter(Boolean);
+  // Un teamId vise deux fois attribuerait les matchs de deux clubs a un seul.
+  expect(new Set(vises).size, 'un teamId est visé par deux correspondances').toBe(vises.length);
+  for (const x of vises) expect(ids, `teamId inconnu: ${x}`).toContain(x);
 });
 
 /* --- LA TABLE DE CORRESPONDANCE ------------------------------------------
