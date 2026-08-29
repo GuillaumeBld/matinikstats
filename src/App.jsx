@@ -2884,13 +2884,12 @@ function TeamComingSoon({ team, onBack }) {
       <div className="p4t-main">
         <button className="p4t-back-btn" onClick={onBack}><ArrowLeft size={15} /> Tous les clubs</button>
         <div className="p4t-comingsoon">
-          <AsciiField
-            className="p4t-comingsoon-field"
-            seeds={[team.name.toUpperCase(), team.commune.toUpperCase(), team.venue.toUpperCase()]}
-            alpha={0.42}
-            speed={0.7}
-            converge={0}
-          />
+          {/* Le champ ASCII est RETIRE d'ici. Dans ce conteneur precis il rend un
+              aplat clair au lieu de glyphes, et je n'ai pas su expliquer pourquoi:
+              l'atlas est correct (alpha croissant de 0 a 105 sur la rampe) et le
+              meme composant rend bien des caracteres sur la liste des matchs a
+              venir. Plutot que d'expedier un defaut non compris, on s'en passe
+              ici, ou le message est deja porte par le texte. */}
           <ClubBadge teamId={team.id} name={team.name} size="p4t-avatar-lg" />
           <h1 className="p4t-comingsoon-title">{team.name}</h1>
           <p className="p4t-comingsoon-loc">{team.commune} · {team.region}</p>
@@ -3518,18 +3517,34 @@ export default function App() {
         }
         .p4t-fixture-list-pending .p4t-fixture-row { position: relative; }
 
+        /* Ce bloc est pose sur le fond video. Il lui faut SON PROPRE panneau
+           sombre, pour deux raisons apprises a la dure:
+           1. le champ ASCII est dessine en teinte claire; sur une image
+              lumineuse ses glyphes ne se lisent plus comme des caracteres, ils
+              s agglomerent en brume blanche.
+           2. le texte prenait l encre du theme, donc du quasi-noir sur une
+              photo en theme clair. Troisieme occurrence du meme bug, apres le
+              heros et la carte de partage: sur une image, le texte est clair
+              dans les DEUX themes, point. */
         .p4t-comingsoon {
-          text-align: center; padding: 64px 20px 44px; max-width: 460px; margin: 0 auto;
-          position: relative; isolation: isolate;
+          text-align: center; padding: 56px 32px 44px; max-width: 560px;
+          margin: 40px auto; position: relative; isolation: isolate;
+          background: rgba(14,10,7,.82); border: 1px solid rgba(246,240,228,.12);
+          border-radius: 16px; backdrop-filter: blur(12px);
+          box-shadow: 0 24px 70px rgba(0,0,0,.4);
         }
+        .p4t-comingsoon .p4t-comingsoon-title { color: #F6F0E4; }
+        .p4t-comingsoon .p4t-comingsoon-loc,
+        .p4t-comingsoon .p4t-comingsoon-text { color: rgba(246,240,228,.72); }
+        .p4t-comingsoon .p4t-avatar { border-color: rgba(246,240,228,.2); }
         /* Le champ ASCII occupe la place que la donnee occupera. Il deborde
            volontairement du bloc de texte : c'est la salle, pas une vignette. */
         .p4t-comingsoon-field {
           position: absolute; z-index: -1; pointer-events: none;
-          left: 50%; transform: translateX(-50%);
-          top: -18px; width: min(96vw, 900px); height: calc(100% + 36px);
-          -webkit-mask-image: radial-gradient(ellipse at center, #000 38%, transparent 78%);
-          mask-image: radial-gradient(ellipse at center, #000 38%, transparent 78%);
+          left: 0; top: 0; width: 100%; height: 100%;
+          border-radius: 16px; overflow: hidden;
+          -webkit-mask-image: radial-gradient(ellipse at center, #000 30%, transparent 88%);
+          mask-image: radial-gradient(ellipse at center, #000 30%, transparent 88%);
         }
         .p4t-comingsoon > *:not(.p4t-comingsoon-field) { position: relative; }
 

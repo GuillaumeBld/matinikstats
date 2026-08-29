@@ -184,6 +184,13 @@ export default function AsciiField({
           const x = c * 0.16, y = r * 0.29;
           let v = 0.5 + 0.5 * Math.sin(x + t * 0.55) * Math.cos(y - t * 0.31);
           v *= 0.5 + 0.5 * Math.sin((x + y) * 0.35 - t * 0.22);
+          // Les deux ondes sont larges: sur une petite surface, presque toutes
+          // les cellules finissent a une densite voisine et elevee, ce qui donne
+          // un LAVIS uniforme au lieu de caracteres epars. On durcit donc le
+          // contraste et on coupe le bas, pour que seules les cellules fortes
+          // s allument et qu on lise des glyphes, pas une brume.
+          v = Math.pow(v, 3);
+          if (v < 0.14) v = 0;
           const isData = textMask[i];
           if (isData) v = Math.min(1, v * (1 - conv) + conv);
           const k = i * 4;
