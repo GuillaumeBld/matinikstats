@@ -119,7 +119,7 @@ export default function AsciiField({
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
-    tex(1, ac);
+    const glyphTex = tex(1, ac);
     gl.uniform1i(gl.getUniformLocation(prog, 'uGlyphs'), 1);
     gl.uniform1i(gl.getUniformLocation(prog, 'uField'), 0);
     gl.uniform3fv(gl.getUniformLocation(prog, 'uInk'), hexToRgb(ink));
@@ -151,6 +151,7 @@ export default function AsciiField({
           textMask[row * cols + start + c] = 1;
         }
       }
+      if (fieldTex) gl.deleteTexture(fieldTex);   // sinon une texture fuit a chaque redimensionnement
       fieldTex = tex(0, null, cols, rows, field);
       gl.uniform2f(uGrid, cols, rows);
     }
@@ -202,6 +203,19 @@ export default function AsciiField({
       cancelAnimationFrame(raf);
       ro.disconnect();
       document.removeEventListener('visibilitychange', onVis);
+      // Liberer explicitement les ressources GPU : le ramasse-miettes ne rend
+      // pas la memoire d'un contexte WebGL, et les contextes sont plafonnes
+      // par le navigateur (une poignee par page).
+      try {
+        if (fieldTex) gl.deleteTexture(fieldTex);
+        if (glyphTex) gl.deleteTexture(glyphTex);
+        gl.deleteBuffer(buf);
+        gl.deleteProgram(prog);
+        gl.deleteShader(vs);
+        gl.deleteShader(fs);
+        const lose = gl.getExtension('WEBGL_lose_context');
+        if (lose) lose.loseContext();
+      } catch (e) { /* contexte deja perdu */ }
     };
   }, [accent, ink, alpha, speed]);
 

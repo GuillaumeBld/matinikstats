@@ -39,7 +39,7 @@ export default function BackdropFilm() {
     const src = coarse || innerWidth <= 860 ? SRC_MOBILE : SRC_DESKTOP;
 
     let ready = false, dur = 0, alive = true;
-    let seeking = false, want = 0, lastKey = '', raf = 0;
+    let seeking = false, want = 0, lastKey = '', raf = 0, seekStart = 0;
 
     // Le CLIP est calé sur la hauteur RÉELLE de la page : il démarre en haut,
     // il finit en bas, quelle que soit la longueur de la vue. C'est ce qui le
@@ -69,14 +69,18 @@ export default function BackdropFilm() {
     function seek(p) {
       if (!ready) return;
       want = p * (dur - 0.05);
-      if (seeking) return;
+      // Sortie de secours : si `seeked` n'arrive jamais (decodeur bloque), la
+      // garde resterait fermee et le fond se figerait definitivement.
+      if (seeking && performance.now() - seekStart < 1500) return;
       seeking = true;
+      seekStart = performance.now();
       try { vid.currentTime = want; } catch (e) { seeking = false; }
     }
     function onSeeked() {
       seeking = false;
       if (Math.abs(vid.currentTime - want) > 0.04) {
         seeking = true;
+        seekStart = performance.now();
         try { vid.currentTime = want; } catch (e) { seeking = false; }
       }
     }
@@ -90,11 +94,16 @@ export default function BackdropFilm() {
       raf = requestAnimationFrame(tick);
     }
 
-    fetch(src)
+    // En reduction de mouvement on ne telecharge meme pas le clip : le CSS le
+    // masque de toute facon, et le fetch declencherait reseau, decodage et memoire
+    // pour rien.
+    let objectUrl = null;
+    if (!reduced) fetch(src)
       .then((r) => r.blob())
       .then((b) => {
         if (!alive) return;
-        vid.src = URL.createObjectURL(b);
+        objectUrl = URL.createObjectURL(b);
+        vid.src = objectUrl;
         vid.load();
         return new Promise((res) => {
           if (vid.readyState >= 1) return res();
@@ -134,6 +143,13 @@ export default function BackdropFilm() {
       themeWatch.disconnect();
       document.removeEventListener('visibilitychange', onVis);
       removeEventListener('touchstart', prime);
+      // Relacher la ressource media : sans revoke ni load(), le Blob reste
+      // retenu par le document.
+      try {
+        vid.removeAttribute('src');
+        vid.load();
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
+      } catch (e) { /* sans effet */ }
     };
   }, []);
 

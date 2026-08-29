@@ -25,6 +25,22 @@ import BackdropFilm from './BackdropFilm.jsx';
    n'aura des données que le jour où sa caméra PIX4TEAM 2 est déployée.
    ========================================================================= */
 
+// Canvas 2D ne resout pas les variables CSS : `ctx.fillStyle = SHARE.amber`
+// est une valeur invalide, silencieusement ignoree, et le style precedent reste
+// actif. Il faut donc lire la variable sur la racine au moment du trace, ce qui
+// a aussi l'avantage de suivre le theme clair ou sombre en cours.
+function cssVar(name, fallback) {
+  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return v || fallback;
+}
+
+// Une carte de partage dessine SON PROPRE fond sombre (#111111) et part vivre
+// ailleurs, dans un fil de discussion, hors de tout theme. Sa palette est donc
+// fixe et sombre en permanence : y lire les jetons du theme rendrait le texte
+// noir sur noir des que le visiteur est en theme clair. C'est exactement le
+// defaut corrige dans le heros, a ne pas reintroduire ici.
+const SHARE = { ink: '#F6F0E4', dim: '#A2937E', amber: '#FFB020', bg: '#111111' };
+
 function strHash(s) {
   let h = 0;
   for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
@@ -979,22 +995,22 @@ function HighlightShareModal({ highlight, onClose }) {
     canvas.width = w; canvas.height = h;
     const ctx = canvas.getContext('2d');
 
-    ctx.fillStyle = '#111111';
+    ctx.fillStyle = SHARE.bg;
     ctx.fillRect(0, 0, w, h);
     const glow = ctx.createRadialGradient(w * 0.82, h * 0.14, 20, w * 0.82, h * 0.14, 500);
     glow.addColorStop(0, colors.glowA);
     glow.addColorStop(1, colors.glowB);
     ctx.fillStyle = glow;
     ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = 'var(--amber)';
+    ctx.fillStyle = SHARE.amber;
     ctx.fillRect(0, 0, w, 6);
 
     ctx.textAlign = 'left';
-    ctx.fillStyle = 'var(--ink)';
+    ctx.fillStyle = SHARE.ink;
     ctx.font = "600 24px Oswald, sans-serif";
     ctx.fillText('MATINIKSTATS', 48, 76);
     ctx.textAlign = 'right';
-    ctx.fillStyle = 'var(--ink-dim)';
+    ctx.fillStyle = SHARE.dim;
     ctx.font = "400 18px Inter, sans-serif";
     ctx.fillText('HIGHLIGHT', w - 48, 76);
 
@@ -1003,15 +1019,15 @@ function HighlightShareModal({ highlight, onClose }) {
     ctx.font = "700 84px Oswald, sans-serif";
     ctx.fillText(meta.label.toUpperCase(), 48, 400);
 
-    ctx.fillStyle = 'var(--ink-dim)';
+    ctx.fillStyle = SHARE.dim;
     ctx.font = "500 22px 'JetBrains Mono', monospace";
     ctx.fillText(highlight.duration, 48, 446);
 
-    ctx.fillStyle = 'var(--ink)';
+    ctx.fillStyle = SHARE.ink;
     ctx.font = "700 54px Oswald, sans-serif";
     const nameY = wrapCanvasText(ctx, player.name, 48, 600, w - 96, 58);
 
-    ctx.fillStyle = 'var(--ink-dim)';
+    ctx.fillStyle = SHARE.dim;
     ctx.font = "400 22px Inter, sans-serif";
     ctx.fillText(`${teamName(highlight.teamId)} · vs ${highlight.opponent}`, 48, nameY + 50);
 
@@ -1022,7 +1038,7 @@ function HighlightShareModal({ highlight, onClose }) {
     ctx.stroke();
 
     ctx.textAlign = 'right';
-    ctx.fillStyle = 'var(--amber)';
+    ctx.fillStyle = SHARE.amber;
     ctx.font = "600 18px Inter, sans-serif";
     ctx.fillText('matinikstats.mq', w - 48, 950);
 
@@ -1214,48 +1230,48 @@ function MatchShareModal({ match, roster, onClose }) {
     canvas.width = w; canvas.height = h;
     const ctx = canvas.getContext('2d');
 
-    ctx.fillStyle = '#111111';
+    ctx.fillStyle = SHARE.bg;
     ctx.fillRect(0, 0, w, h);
     const glow = ctx.createRadialGradient(w * 0.18, h * 0.1, 20, w * 0.18, h * 0.1, 460);
     glow.addColorStop(0, 'rgba(47,168,160,0.28)');
     glow.addColorStop(1, 'rgba(47,168,160,0)');
     ctx.fillStyle = glow;
     ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = 'var(--amber)';
+    ctx.fillStyle = SHARE.amber;
     ctx.fillRect(0, 0, w, 6);
 
     ctx.textAlign = 'left';
-    ctx.fillStyle = 'var(--ink)';
+    ctx.fillStyle = SHARE.ink;
     ctx.font = "600 24px Oswald, sans-serif";
     ctx.fillText('MATINIKSTATS', 48, 76);
     ctx.textAlign = 'right';
-    ctx.fillStyle = 'var(--ink-dim)';
+    ctx.fillStyle = SHARE.dim;
     ctx.font = "400 18px Inter, sans-serif";
     ctx.fillText(formatDate(match.date).toUpperCase(), w - 48, 76);
 
     ctx.textAlign = 'center';
-    ctx.fillStyle = 'var(--ink-dim)';
+    ctx.fillStyle = SHARE.dim;
     ctx.font = "600 20px Inter, sans-serif";
     let y = wrapCanvasText(ctx, match.homeLabel.toUpperCase(), w / 2, 200, w - 140, 26);
 
-    ctx.fillStyle = 'var(--ink)';
+    ctx.fillStyle = SHARE.ink;
     ctx.font = "700 130px 'JetBrains Mono', monospace";
     ctx.fillText(String(match.homeScore), w / 2, y + 130);
 
-    ctx.fillStyle = 'var(--ink-dim)';
+    ctx.fillStyle = SHARE.dim;
     ctx.font = "700 34px Oswald, sans-serif";
     ctx.fillText('—', w / 2, y + 190);
 
-    ctx.fillStyle = 'var(--ink)';
+    ctx.fillStyle = SHARE.ink;
     ctx.font = "700 130px 'JetBrains Mono', monospace";
     ctx.fillText(String(match.awayScore), w / 2, y + 330);
 
-    ctx.fillStyle = 'var(--ink-dim)';
+    ctx.fillStyle = SHARE.dim;
     ctx.font = "600 20px Inter, sans-serif";
     wrapCanvasText(ctx, match.awayLabel.toUpperCase(), w / 2, y + 380, w - 140, 26);
 
     if (topPlayer) {
-      ctx.fillStyle = 'var(--amber)';
+      ctx.fillStyle = SHARE.amber;
       ctx.font = "600 24px Inter, sans-serif";
       ctx.fillText(`${topPlayer.name.split(' ')[0]} — ${top.pts} pts`, w / 2, 780);
     }
@@ -1266,7 +1282,7 @@ function MatchShareModal({ match, roster, onClose }) {
     ctx.lineTo(w - 48, 900);
     ctx.stroke();
 
-    ctx.fillStyle = 'var(--amber)';
+    ctx.fillStyle = SHARE.amber;
     ctx.font = "600 18px Inter, sans-serif";
     ctx.fillText('matinikstats.mq', w / 2, 950);
 
@@ -1504,41 +1520,41 @@ function ShareCardModal({ player, team, career, onClose }) {
     canvas.width = w; canvas.height = h;
     const ctx = canvas.getContext('2d');
 
-    ctx.fillStyle = '#111111';
+    ctx.fillStyle = SHARE.bg;
     ctx.fillRect(0, 0, w, h);
     const glow = ctx.createRadialGradient(w * 0.85, h * 0.08, 20, w * 0.85, h * 0.08, 420);
     glow.addColorStop(0, 'rgba(255,176,32,0.35)');
     glow.addColorStop(1, 'rgba(255,176,32,0)');
     ctx.fillStyle = glow;
     ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = 'var(--amber)';
+    ctx.fillStyle = SHARE.amber;
     ctx.fillRect(0, 0, w, 6);
 
     ctx.textAlign = 'left';
-    ctx.fillStyle = 'var(--ink)';
+    ctx.fillStyle = SHARE.ink;
     ctx.font = "600 24px Oswald, sans-serif";
     ctx.fillText('MATINIKSTATS', 48, 76);
     ctx.textAlign = 'right';
-    ctx.fillStyle = 'var(--ink-dim)';
+    ctx.fillStyle = SHARE.dim;
     ctx.font = "400 18px Inter, sans-serif";
     ctx.fillText('Saison 2025–2026', w - 48, 76);
 
     ctx.textAlign = 'left';
-    ctx.fillStyle = 'var(--amber)';
+    ctx.fillStyle = SHARE.amber;
     ctx.font = "600 20px Inter, sans-serif";
     ctx.fillText(team.name.toUpperCase(), 48, 150);
-    ctx.fillStyle = 'var(--ink-dim)';
+    ctx.fillStyle = SHARE.dim;
     ctx.font = "400 17px Inter, sans-serif";
     ctx.fillText(`${team.commune} · ${team.region}`, 48, 176);
 
-    ctx.fillStyle = 'var(--ink)';
+    ctx.fillStyle = SHARE.ink;
     ctx.font = "700 66px Oswald, sans-serif";
     const nameBottomY = wrapCanvasText(ctx, player.name, 48, 280, w - 96, 70);
 
-    ctx.fillStyle = 'var(--amber)';
+    ctx.fillStyle = SHARE.amber;
     ctx.font = "700 28px Oswald, sans-serif";
     ctx.fillText(`#${player.number}`, 48, nameBottomY + 54);
-    ctx.fillStyle = 'var(--ink-dim)';
+    ctx.fillStyle = SHARE.dim;
     ctx.font = "400 22px Inter, sans-serif";
     ctx.fillText(player.position, 48 + ctx.measureText(`#${player.number}  `).width, nameBottomY + 54);
 
@@ -1552,10 +1568,10 @@ function ShareCardModal({ player, team, career, onClose }) {
     ctx.textAlign = 'center';
     stats.forEach((s, i) => {
       const cx = blockW * i + blockW / 2;
-      ctx.fillStyle = 'var(--ink)';
+      ctx.fillStyle = SHARE.ink;
       ctx.font = "700 58px 'JetBrains Mono', monospace";
       ctx.fillText(s.value, cx, statsY);
-      ctx.fillStyle = 'var(--ink-dim)';
+      ctx.fillStyle = SHARE.dim;
       ctx.font = "600 15px Inter, sans-serif";
       ctx.fillText(s.label, cx, statsY + 30);
     });
@@ -1567,11 +1583,11 @@ function ShareCardModal({ player, team, career, onClose }) {
     ctx.stroke();
 
     ctx.textAlign = 'left';
-    ctx.fillStyle = 'var(--ink-dim)';
+    ctx.fillStyle = SHARE.dim;
     ctx.font = "400 17px Inter, sans-serif";
     ctx.fillText(`${career.matchesPlayed} matchs joués cette saison`, 48, 900);
     ctx.textAlign = 'right';
-    ctx.fillStyle = 'var(--amber)';
+    ctx.fillStyle = SHARE.amber;
     ctx.font = "600 18px Inter, sans-serif";
     ctx.fillText('matinikstats.mq', w - 48, 940);
 
@@ -3298,7 +3314,6 @@ export default function App() {
           .p4t-backdrop-vid { display: none; }
         }
 
-        }
         .p4t-comingsoon-title { font-family: var(--font-display); font-size: 22px; font-weight: 600; margin: 16px 0 4px; }
         .p4t-comingsoon-loc { color: var(--ink-dim); font-size: 13px; margin: 0 0 16px; }
         .p4t-comingsoon-text { color: var(--ink-dim); font-size: 13.5px; line-height: 1.6; }
@@ -3351,6 +3366,14 @@ export default function App() {
           position: relative; padding: 22px 20px; display: flex; flex-direction: column;
           background-image: radial-gradient(circle at 85% 6%, rgba(255,176,32,0.35), transparent 45%);
           box-shadow: 0 20px 60px rgba(0,0,0,0.5); font-family: var(--font-body);
+        }
+        /* La carte DOM est l'apercu exact du PNG : elle a le meme fond sombre
+           fixe, donc elle doit avoir la meme palette fixe. Ces jetons locaux
+           neutralisent le theme a l'interieur de la carte, et seulement la. */
+        .p4t-sharecard {
+          --ink: #F6F0E4;
+          --ink-dim: #A2937E;
+          --amber: #FFB020;
         }
         .p4t-sharecard-topbar { position: absolute; top: 0; left: 0; right: 0; height: 4px; background: var(--amber); }
         .p4t-sharecard-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 18px; }
