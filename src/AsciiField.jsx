@@ -103,10 +103,23 @@ export default function AsciiField({
     }
     const vs = compile(gl.VERTEX_SHADER, VS);
     const fs = compile(gl.FRAGMENT_SHADER, FS);
-    if (!vs || !fs) return;
+    // Sorties anticipees : si un seul des deux shaders compile, l'autre reste
+    // alloue ; si le linkage echoue, le programme et les shaders attaches le
+    // restent aussi. Le nettoyage de fin d'effet n'est pas atteint dans ces
+    // chemins, il faut donc liberer ici.
+    if (!vs || !fs) {
+      if (vs) gl.deleteShader(vs);
+      if (fs) gl.deleteShader(fs);
+      return;
+    }
     const prog = gl.createProgram();
     gl.attachShader(prog, vs); gl.attachShader(prog, fs); gl.linkProgram(prog);
-    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return;
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+      gl.deleteProgram(prog);
+      gl.deleteShader(vs);
+      gl.deleteShader(fs);
+      return;
+    }
     gl.useProgram(prog);
 
     const buf = gl.createBuffer();
