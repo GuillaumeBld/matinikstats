@@ -246,10 +246,19 @@ test('le PNG de partage porte le tampon de démonstration', async ({ page }, tes
 test('les logos de clubs s affichent et le repli sur initiales tient', async ({ page }) => {
   const err404 = [];
   page.on('response', (r) => {
-    if (r.url().includes('/logos/') && r.status() !== 200) err404.push(`${r.status()} ${r.url()}`);
+    // >= 400 seulement: un 304 Not Modified est un succes servi par le cache,
+    // pas un echec. La premiere version de ce controle le comptait comme une
+    // erreur et echouait donc sur du code sain.
+    if (r.url().includes('/logos/') && r.status() >= 400) err404.push(`${r.status()} ${r.url()}`);
   });
   await boot(page, 'dark');
-  await page.evaluate(() => (document.documentElement.scrollTop = 2400));
+  // On va sur la vue Clubs plutot que de faire confiance a une position de
+  // scroll: la hauteur de page depend du contenu, et la premiere version de ce
+  // controle echouait sur du code sain pour cette seule raison.
+  await page.evaluate(() => {
+    const b = [...document.querySelectorAll('.p4t-tab')].find((x) => x.textContent.trim() === 'Clubs');
+    if (b) b.click();
+  });
   await page.waitForTimeout(1500);
   const r = await page.evaluate(() => ({
     logos: document.querySelectorAll('.p4t-avatar-logo').length,

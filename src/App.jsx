@@ -29,6 +29,45 @@ import BackdropFilm from './BackdropFilm.jsx';
 // est une valeur invalide, silencieusement ignoree, et le style precedent reste
 // actif. Il faut donc lire la variable sur la racine au moment du trace, ce qui
 // a aussi l'avantage de suivre le theme clair ou sombre en cours.
+/* =========================================================================
+   INTERRUPTEUR DES DONNEES FABRIQUEES
+
+   Tout ce qui est invente descend de QUATRE sources et rien d autre: ROSTERS,
+   FIXTURES, buildTeamMatches et HIGHLIGHTS. Le reste en derive. Il suffit donc
+   de quatre robinets pour eteindre l invention, famille par famille, a mesure
+   que la vraie donnee arrive.
+
+   Les deux familles de statistiques sont separees parce qu elles n arriveront
+   PAS ensemble: un club peut avoir une camera sans marqueur a la table ce
+   soir-la, ou l inverse. Voir DONNEES.md.
+
+   Surchargeable a l execution, sans reconstruire, pour montrer les deux etats:
+     /?faux=off                tout eteint
+     /?faux=fixtures,score     seules ces familles restent allumees
+   ========================================================================= */
+
+const FAKE_DEFAUT = {
+  rosters: true,      // effectifs inventes
+  fixtures: true,     // calendrier et scores inventes
+  score: true,        // famille SCORE: points, tirs, rebonds, passes, fautes
+  mouvement: true,    // famille MOUVEMENT: distance, vitesse, sprints, touches
+  highlights: true,   // temps forts inventes
+};
+
+const FAKE = (() => {
+  try {
+    const p = new URLSearchParams(location.search).get('faux');
+    if (p === null) return { ...FAKE_DEFAUT };
+    if (p === 'off' || p === '') return { rosters: false, fixtures: false, score: false, mouvement: false, highlights: false };
+    const gardees = new Set(p.split(',').map((x) => x.trim()));
+    const out = {};
+    for (const k of Object.keys(FAKE_DEFAUT)) out[k] = gardees.has(k);
+    return out;
+  } catch (e) {
+    return { ...FAKE_DEFAUT };   // pas d URL exploitable: on reste au defaut
+  }
+})();
+
 function cssVar(name, fallback) {
   const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   return v || fallback;
@@ -230,7 +269,7 @@ const GENERATED_ROSTER_TEAM_IDS = [
   'carbet', 'ducos', 'goodluck', 'intrepide', 'usacfloreal', 'waks', 'aiglenoir',
   'aiglon', 'sportinglamentin', 'blackstars', 'gauloise', 'larel', 'vauclinois',
 ];
-GENERATED_ROSTER_TEAM_IDS.forEach((id) => { ROSTERS[id] = buildFictionalRoster(id); });
+if (FAKE.rosters) GENERATED_ROSTER_TEAM_IDS.forEach((id) => { ROSTERS[id] = buildFictionalRoster(id); });
 
 // Clubs de la compétition féminine (Pré-nationale féminine LMBB) : quatre
 // clubs indépendants + six sections féminines de clubs déjà présents côté
@@ -240,7 +279,7 @@ const FEMININE_ROSTER_TEAM_IDS = [
   'madingrey', 'mucbasket', 'redant', 'twenty4',
   'intrepide-f', 'etoile-f', 'ouragan-f', 'kalinago-f', 'zandoli-f', 'usacfloreal-f',
 ];
-FEMININE_ROSTER_TEAM_IDS.forEach((id) => { ROSTERS[id] = buildFictionalRoster(id, FIRST_NAME_POOL_F); });
+if (FAKE.rosters) FEMININE_ROSTER_TEAM_IDS.forEach((id) => { ROSTERS[id] = buildFictionalRoster(id, FIRST_NAME_POOL_F); });
 
 // Clubs réels de la Ligue Régionale Martiniquaise de Basket-Ball, d'après le
 // répertoire officiel des clubs affiliés (toutes disciplines confondues, ici
@@ -293,6 +332,15 @@ const TEAMS = [
   { id: 'zandoli-f',       name: 'Hirondelle du Marin (Féminin)',    commune: 'Marin',          region: 'Martinique', venue: 'Stade Roger Bonaro',                 competitionId: 'r1-f', hasData: true },
   { id: 'usacfloreal-f',   name: 'USAC de Floréal (Féminin)',        commune: 'Fort-de-France', region: 'Martinique', venue: 'Hall de Floréal',                    competitionId: 'r1-f', hasData: true },
 ];
+// hasData etait code en dur a true pour les 30 clubs, ce qui rendait l etat
+// "pas encore de captation" inatteignable. Il est desormais DERIVE: un club a
+// des donnees s il a un effectif et au moins un match joue.
+function teamHasData(id) {
+  const l = LEAGUE[id];
+  if (!l) return false;
+  return (l.roster || []).length > 0 && (l.matches || []).some((m) => m.played);
+}
+
 function teamName(id) {
   const t = TEAMS.find((x) => x.id === id);
   return t ? t.name : id;
@@ -346,7 +394,7 @@ function buildDivisionFixtures(ids, prefix, playedStartDate, upcomingStartDate, 
   return [...playedFixtures, ...upcomingFixtures];
 }
 
-const FIXTURES = [
+const FIXTURES = !FAKE.fixtures ? [] : [
   ...buildDivisionFixtures(
     ['etoile', 'requins', 'kalinago', 'carbet', 'ducos', 'usacfloreal', 'waks', 'aiglenoir', 'blackstars', 'gauloise'],
     'r1m', '2025-10-08T00:00:00Z', '2026-02-02T00:00:00Z'
@@ -395,13 +443,18 @@ function buildTeamMatches(teamId) {
         const rand = mulberry32(strHash(p.id + seedKey));
         const mprof = MOVEMENT_PROFILE[p.position];
         const sprof = SCORE_PROFILE[p.position];
-        const movement = {
-          distanceKm: +lerp(rand, mprof.distance).toFixed(2),
-          maxSpeedKmh: +lerp(rand, mprof.speed).toFixed(1),
-          sprints: Math.round(lerp(rand, mprof.sprints)),
-          ballTouches: Math.round(lerp(rand, mprof.touches)),
-          effectiveMin: Math.round(lerp(rand, mprof.time)),
-        };
+        // Famille MOUVEMENT: sortie du tracking, sans saisie humaine. Eteinte,
+        // elle laisse les champs a null plutot qu a zero, parce qu un zero se
+        // lit comme une mesure et null se lit comme une absence.
+        const movement = FAKE.mouvement
+          ? {
+              distanceKm: +lerp(rand, mprof.distance).toFixed(2),
+              maxSpeedKmh: +lerp(rand, mprof.speed).toFixed(1),
+              sprints: Math.round(lerp(rand, mprof.sprints)),
+              ballTouches: Math.round(lerp(rand, mprof.touches)),
+              effectiveMin: Math.round(lerp(rand, mprof.time)),
+            }
+          : { distanceKm: null, maxSpeedKmh: null, sprints: null, ballTouches: null, effectiveMin: null };
         const fg2Raw = lerp(rand, sprof.fg2);
         const fg3Raw = lerp(rand, sprof.fg3);
         const reb = Math.round(lerp(rand, sprof.reb));
@@ -415,11 +468,23 @@ function buildTeamMatches(teamId) {
       const rawPtsSum = raw.reduce((a, r) => a + r.fg2Raw * 2 + r.fg3Raw * 3, 0);
       const scale = rawPtsSum > 0 ? scoreFor / rawPtsSum : 1;
 
+      // Famille SCORE: saisie par le marqueur a la table. Eteinte, elle laisse
+      // null elle aussi. Le +/- est croise des DEUX familles: il n existe que
+      // si le score ET le temps de jeu mesure sont la, ce qui est exactement la
+      // regle enoncee par Benoit dans son commentaire d en-tete.
       const players = raw.map((r) => {
+        if (!FAKE.score) {
+          return {
+            playerId: r.playerId, pts: null, fg2Made: null, fg3Made: null,
+            reb: null, ast: null, fouls: null, plusMinus: null, ...r.movement,
+          };
+        }
         const fg2Made = Math.max(0, Math.round(r.fg2Raw * scale));
         const fg3Made = Math.max(0, Math.round(r.fg3Raw * scale));
         const pts = fg2Made * 2 + fg3Made * 3;
-        const plusMinus = Math.round(netScore * (0.35 + r.pmSeed * 0.75) + (r.pmSeed - 0.5) * 12);
+        const plusMinus = FAKE.mouvement
+          ? Math.round(netScore * (0.35 + r.pmSeed * 0.75) + (r.pmSeed - 0.5) * 12)
+          : null;
         return { playerId: r.playerId, pts, fg2Made, fg3Made, reb: r.reb, ast: r.ast, fouls: r.fouls, plusMinus, ...r.movement };
       });
 
@@ -445,9 +510,21 @@ function buildTeamMatches(teamId) {
 }
 
 // LEAGUE[teamId] = { roster, matches } — précalculé une fois pour tous les clubs.
+// Les 7 effectifs ecrits a la main sont dans l objet litteral ROSTERS, donc ils
+// ne passent pas par buildFictionalRoster: il faut les retirer ici, sinon ils
+// survivraient a l interrupteur.
+//
+// On REMPLACE par un tableau vide au lieu de supprimer la cle: une dizaine
+// d endroits font ROSTERS[id].map ou .find sans garde, et supprimer la cle les
+// fait planter. Un effectif vide est un etat legitime, une cle absente non.
+if (!FAKE.rosters) {
+  for (const k of Object.keys(ROSTERS)) delete ROSTERS[k];
+  TEAMS.forEach((t) => { ROSTERS[t.id] = []; });
+}
+
 const LEAGUE = {};
 TEAMS.forEach((t) => {
-  LEAGUE[t.id] = { roster: ROSTERS[t.id], matches: buildTeamMatches(t.id) };
+  LEAGUE[t.id] = { roster: ROSTERS[t.id] || [], matches: buildTeamMatches(t.id) };
 });
 
 function getPlayerHistory(teamId, playerId) {
@@ -597,6 +674,7 @@ function buildLeagueFeed() {
 // l'historique des anciens joueurs de la semaine.
 function getWeeklyFeatured(matchId) {
   const fixture = FIXTURES.find((f) => f.id === matchId);
+  if (!fixture) return null;
   const homeMatch = LEAGUE[fixture.homeTeamId].matches.find((m) => m.id === matchId);
   const awayMatch = LEAGUE[fixture.awayTeamId].matches.find((m) => m.id === matchId);
   const homeTop = getMatchTopScorer(homeMatch);
@@ -614,8 +692,12 @@ function getWeeklyFeaturedHistory() {
   return FIXTURES.filter((f) => f.homeScore != null).sort((a, b) => b.date.localeCompare(a.date)).map((f) => getWeeklyFeatured(f.id));
 }
 
+// Sans aucun match joue, il n y a pas de joueur de la semaine. C est un etat
+// legitime depuis que les donnees fabriquees peuvent etre eteintes, pas une
+// anomalie: on renvoie null et l appelant n affiche pas la section.
 function getPlayerOfTheWeek() {
   const played = FIXTURES.filter((f) => f.homeScore != null).sort((a, b) => b.date.localeCompare(a.date));
+  if (!played.length) return null;
   return getWeeklyFeatured(played[0].id);
 }
 
@@ -647,7 +729,10 @@ function getSeasonRecords(competitionId = null) {
     });
   });
 
-  return RECORD_CATEGORIES.map((c) => ({ ...c, record: best[c.key] }));
+  // Sans match joue il n y a pas de record. On ne renvoie donc PAS une entree
+  // au record null, que les appelants deréférencent sans garde: on renvoie une
+  // liste plus courte, ce qui est la description honnete de la situation.
+  return RECORD_CATEGORIES.map((c) => ({ ...c, record: best[c.key] })).filter((c) => c.record);
 }
 
 // Records "d'équipe" (pas un joueur en particulier) : plus gros score, plus
@@ -713,7 +798,7 @@ const HIGHLIGHT_TYPES = {
   buzzer: { label: 'Buzzer Beater', icon: Clock,   thumbClass: 'p4t-highlight-thumb-block' },
 };
 
-const HIGHLIGHTS = [
+const HIGHLIGHTS = !FAKE.highlights ? [] : [
   { id: 'h1', type: 'dunk',   playerId: 'trident-p7',    teamId: 'trident',    opponent: 'Golden Lion',              opponentTeamId: 'kalinago',    duration: '0:14' },
   { id: 'h2', type: '3pts',   playerId: 'kalinago-p2',   teamId: 'kalinago',   opponent: 'Golden Star',              opponentTeamId: 'etoile',      duration: '0:09' },
   { id: 'h3', type: 'block',  playerId: 'ouragan-p9',    teamId: 'ouragan',    opponent: 'Hirondelle du Marin',      opponentTeamId: 'zandoli',     duration: '0:11' },
@@ -734,12 +819,36 @@ const HIGHLIGHTS = [
 // visiteur lit "Waks Basket Club, 4 matchs, 0 victoire" et le croit, et on
 // attribue publiquement a des clubs reels des defaites qu'ils n'ont pas subies.
 // Une mention en pied de page ne suffit pas: personne ne descend.
+const FAMILLES = {
+  rosters: 'les effectifs',
+  fixtures: 'le calendrier et les scores',
+  score: 'les statistiques de match',
+  mouvement: 'les données de course',
+  highlights: 'les temps forts',
+};
+
 function DemoBanner() {
+  const inventees = Object.keys(FAMILLES).filter((k) => FAKE[k]);
+
+  // Un bandeau qui annonce des donnees fabriquees alors qu il n y en a plus
+  // ment dans l autre sens. Il doit donc suivre l interrupteur.
+  if (inventees.length === 0) {
+    return (
+      <div className="p4t-demo-banner" role="note">
+        <strong>EN ATTENTE DE CAPTATION.</strong> Les clubs, les communes et les salles
+        sont réels. Aucune statistique n'est encore mesurée: rien de ce qui est affiché
+        n'est inventé, il n'y a simplement pas encore de données.
+      </div>
+    );
+  }
+
+  const tout = inventees.length === Object.keys(FAMILLES).length;
   return (
     <div className="p4t-demo-banner" role="note">
       <strong>DÉMONSTRATION.</strong> Les clubs, les communes et les salles sont réels.
-      Tous les matchs, scores, joueurs et records affichés sont fabriqués pour montrer
-      à quoi ressemblera la plateforme.
+      {tout
+        ? " Tous les matchs, scores, joueurs et records affichés sont fabriqués pour montrer à quoi ressemblera la plateforme."
+        : ` Sont encore fabriqués: ${inventees.map((k) => FAMILLES[k]).join(', ')}. Le reste attend la captation.`}
     </div>
   );
 }
@@ -1942,6 +2051,7 @@ function PlatformHome({ onSelectTeam, onOpenMatch, onOpenPlayer, onShowAllMatche
           <SearchBox variant="hero" placeholder="Chercher un joueur ou un club…" items={searchableItems} onSelect={handleSearchSelect} />
         </section>
 
+        {potw && <>
         <div className="p4t-section-head">
           <h2 className="p4t-section-title">Joueur de la semaine</h2>
         </div>
@@ -1961,6 +2071,7 @@ function PlatformHome({ onSelectTeam, onOpenMatch, onOpenPlayer, onShowAllMatche
             </div>
           </div>
         </button>
+        </>}
 
         <div className="p4t-section-head">
           <h2 className="p4t-section-title">Leaders du championnat</h2>
@@ -3683,7 +3794,7 @@ export default function App() {
       {screen === 'allHighlights' && (
         <AllHighlightsView onOpenPlayer={openPlayerFromHome} onSelectTeam={selectTeam} onBack={goHome} />
       )}
-      {screen === 'team' && selectedTeam && selectedTeam.hasData && (
+      {screen === 'team' && selectedTeam && teamHasData(selectedTeam.id) && (
         <TeamApp
           team={selectedTeam}
           initialView={teamEntry.view}
@@ -3695,7 +3806,7 @@ export default function App() {
           onOpenAnyPlayer={openPlayerFromHome}
         />
       )}
-      {screen === 'team' && selectedTeam && !selectedTeam.hasData && (
+      {screen === 'team' && selectedTeam && !teamHasData(selectedTeam.id) && (
         <TeamComingSoon team={selectedTeam} onBack={goHome} />
       )}
     </div>
